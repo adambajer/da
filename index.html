@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Drawing App with Firebase</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Drawing App</h1>
+  <div id="toolbar">
+    <input type="color" id="colorPicker" value="#000000">
+    <input type="range" id="brushSize" min="1" max="50" value="5">
+    <button id="saveButton">Save to Firebase</button>
+    <button id="loadButton">Load from Firebase</button>
+    <button id="downloadButton">Download as Image</button>
+    <button id="clearButton">Clear</button>
+  </div>
+  <canvas id="drawingCanvas" width="800" height="600"></canvas>
+
+  <!-- Include Firebase SDK -->
+  <!-- The core Firebase JS SDK is always required and must be listed first -->
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js"></script>
+  <!-- Add Firebase products that you want to use -->
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js"></script>
+
+  <!-- Your JavaScript file -->
+  <script src="script.js"></script>
+</body>
+</html>
