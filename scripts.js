@@ -13,6 +13,10 @@ const saveButton = document.getElementById('saveButton');
 const loadButton = document.getElementById('loadButton');
 const downloadButton = document.getElementById('downloadButton');
 const clearButton = document.getElementById('clearButton');
+const exportButton = document.createElement('button');
+
+exportButton.textContent = 'Export All Drawings';
+document.getElementById('toolbar').appendChild(exportButton);
 
 let drawing = false;
 let currentX = 0;
@@ -57,10 +61,11 @@ clearButton.addEventListener('click', () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
-// Save, Load, and Download functions
+// Save, Load, Download, and Export functions
 saveButton.addEventListener('click', saveDrawing);
 loadButton.addEventListener('click', loadDrawing);
 downloadButton.addEventListener('click', downloadDrawing);
+exportButton.addEventListener('click', exportAllDrawings);
 
 function saveDrawing() {
   const dataURL = canvas.toDataURL();
@@ -100,6 +105,28 @@ function downloadDrawing() {
   link.download = 'drawing.png';
   link.href = dataURL;
   link.click();
+}
+
+function exportAllDrawings() {
+  database.ref('drawings').once('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      const drawings = Object.values(data);
+      const zip = new JSZip();
+
+      drawings.forEach((drawing, index) => {
+        const dataURL = drawing.imageData;
+        const imgData = dataURL.split(',')[1];
+        zip.file(`drawing${index + 1}.png`, imgData, { base64: true });
+      });
+
+      zip.generateAsync({ type: 'blob' }).then((content) => {
+        saveAs(content, 'drawings.zip');
+      });
+    } else {
+      alert('No drawings found to export.');
+    }
+  });
 }
 
 // Drawing function
