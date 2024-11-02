@@ -69,10 +69,7 @@ clearButton.addEventListener('click', () => {
   showInfoMessage('Canvas cleared');
   autoSaveDrawing();
 });
-
-// Save, Load, Download, and Export functions
-saveButton.addEventListener('click', saveDrawing);
-loadButton.addEventListener('click', loadDrawing);
+ 
 downloadButton.addEventListener('click', downloadDrawing);
 exportButton.addEventListener('click', exportAllDrawings);
 
