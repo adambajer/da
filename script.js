@@ -1,3 +1,5 @@
+// JavaScript for Drawing App with Firebase
+
 const firebaseConfig = {
     databaseURL: "https://voice-noter-default-rtdb.europe-west1.firebasedatabase.app",
 };
@@ -5,22 +7,13 @@ firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
 // Get references to DOM elements
-// Get references to DOM elements
 const canvas = document.getElementById('drawingCanvas');
 const ctx = canvas.getContext('2d');
 const colorPicker = document.getElementById('colorPicker');
 const brushSizeInput = document.getElementById('brushSize');
-const saveButton = document.getElementById('saveButton');
-const loadButton = document.getElementById('loadButton');
-const downloadButton = document.getElementById('downloadButton');
 const clearButton = document.getElementById('clearButton');
-const exportButton = document.createElement('button');
 const infoMessage = document.createElement('div');
 
-exportButton.textContent = 'Export All Drawings';
-document.getElementById('toolbar').appendChild(exportButton);
-
-// Info message setup
 document.body.appendChild(infoMessage);
 infoMessage.id = 'infoMessage';
 
@@ -69,9 +62,6 @@ clearButton.addEventListener('click', () => {
   showInfoMessage('Canvas cleared');
   autoSaveDrawing();
 });
- 
-downloadButton.addEventListener('click', downloadDrawing);
-exportButton.addEventListener('click', exportAllDrawings);
 
 // Automatic load on page load
 window.addEventListener('load', () => {
@@ -93,21 +83,6 @@ function autoSaveDrawing() {
   });
 }
 
-function saveDrawing() {
-  const dataURL = canvas.toDataURL();
-  const drawingRef = database.ref('drawings').push();
-  drawingRef.set({
-    imageData: dataURL,
-    timestamp: Date.now()
-  }, (error) => {
-    if (error) {
-      alert('Error saving drawing: ' + error);
-    } else {
-      showInfoMessage('Drawing saved to Firebase.');
-    }
-  });
-}
-
 function loadDrawing() {
   database.ref('drawings/autoSave').once('value', (snapshot) => {
     const data = snapshot.val();
@@ -122,36 +97,6 @@ function loadDrawing() {
       };
     } else {
       showInfoMessage('No saved drawing found in Firebase.');
-    }
-  });
-}
-
-function downloadDrawing() {
-  const dataURL = canvas.toDataURL('image/png');
-  const link = document.createElement('a');
-  link.download = 'drawing.png';
-  link.href = dataURL;
-  link.click();
-}
-
-function exportAllDrawings() {
-  database.ref('drawings').once('value', (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      const drawings = Object.values(data);
-      const zip = new JSZip();
-
-      drawings.forEach((drawing, index) => {
-        const dataURL = drawing.imageData;
-        const imgData = dataURL.split(',')[1];
-        zip.file(`drawing${index + 1}.png`, imgData, { base64: true });
-      });
-
-      zip.generateAsync({ type: 'blob' }).then((content) => {
-        saveAs(content, 'drawings.zip');
-      });
-    } else {
-      alert('No drawings found to export.');
     }
   });
 }
