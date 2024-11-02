@@ -3,6 +3,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 // Get references to DOM elements
+// Get references to DOM elements
 const canvas = document.getElementById('drawingCanvas');
 const ctx = canvas.getContext('2d');
 const colorPicker = document.getElementById('colorPicker');
@@ -12,9 +13,14 @@ const loadButton = document.getElementById('loadButton');
 const downloadButton = document.getElementById('downloadButton');
 const clearButton = document.getElementById('clearButton');
 const exportButton = document.createElement('button');
+const infoMessage = document.createElement('div');
 
 exportButton.textContent = 'Export All Drawings';
 document.getElementById('toolbar').appendChild(exportButton);
+
+// Info message setup
+document.body.appendChild(infoMessage);
+infoMessage.id = 'infoMessage';
 
 let drawing = false;
 let currentX = 0;
@@ -39,6 +45,7 @@ canvas.addEventListener('mousemove', (e) => {
 
 canvas.addEventListener('mouseup', () => {
   drawing = false;
+  autoSaveDrawing();
 });
 
 canvas.addEventListener('mouseout', () => {
@@ -57,6 +64,8 @@ colorPicker.addEventListener('change', () => {
 // Clear canvas
 clearButton.addEventListener('click', () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  showInfoMessage('Canvas cleared');
+  autoSaveDrawing();
 });
 
 // Save, Load, Download, and Export functions
@@ -64,6 +73,26 @@ saveButton.addEventListener('click', saveDrawing);
 loadButton.addEventListener('click', loadDrawing);
 downloadButton.addEventListener('click', downloadDrawing);
 exportButton.addEventListener('click', exportAllDrawings);
+
+// Automatic load on page load
+window.addEventListener('load', () => {
+  loadDrawing();
+});
+
+function autoSaveDrawing() {
+  const dataURL = canvas.toDataURL();
+  const drawingRef = database.ref('drawings/autoSave');
+  drawingRef.set({
+    imageData: dataURL,
+    timestamp: Date.now()
+  }, (error) => {
+    if (error) {
+      showInfoMessage('Error saving drawing automatically: ' + error);
+    } else {
+      showInfoMessage('Drawing saved automatically');
+    }
+  });
+}
 
 function saveDrawing() {
   const dataURL = canvas.toDataURL();
@@ -75,24 +104,25 @@ function saveDrawing() {
     if (error) {
       alert('Error saving drawing: ' + error);
     } else {
-      alert('Drawing saved to Firebase.');
+      showInfoMessage('Drawing saved to Firebase.');
     }
   });
 }
 
 function loadDrawing() {
-  database.ref('drawings').orderByChild('timestamp').limitToLast(1).once('value', (snapshot) => {
+  database.ref('drawings/autoSave').once('value', (snapshot) => {
     const data = snapshot.val();
     if (data) {
-      const drawingData = Object.values(data)[0].imageData;
+      const drawingData = data.imageData;
       const img = new Image();
       img.src = drawingData;
       img.onload = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
+        showInfoMessage('Drawing loaded from Firebase.');
       };
     } else {
-      alert('No drawings found in Firebase.');
+      showInfoMessage('No saved drawing found in Firebase.');
     }
   });
 }
@@ -134,4 +164,13 @@ function drawLine(x1, y1, x2, y2) {
   ctx.lineTo(x2, y2);
   ctx.stroke();
   ctx.closePath();
+}
+
+// Info message function
+function showInfoMessage(message) {
+  infoMessage.textContent = message;
+  infoMessage.classList.add('visible');
+  setTimeout(() => {
+    infoMessage.classList.remove('visible');
+  }, 3000);
 }
