@@ -1,1 +1,107 @@
+/* Cool CSS for Drawing App */
+
+body {
+  font-family: 'Roboto', sans-serif;
+  background: linear-gradient(to right, #6a11cb, #2575fc);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+}
+
+h1 {
+  margin-bottom: 20px;
+  font-size: 3rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+#toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+button, input[type="range"], input[type="color"] {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 15px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+button {
+  background: #ff416c;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+button:hover {
+  background: #ff4b2b;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+input[type="range"] {
+  background: #fff;
+  cursor: pointer;
+}
+
+input[type="color"] {
+  height: 40px;
+  width: 40px;
+  padding: 0;
+  border: 2px solid #fff;
+}
+
+canvas {
+  border: 3px solid #fff;
+  border-radius: 15px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+#exportButton {
+  background: #1dd1a1;
+  color: #fff;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+#exportButton:hover {
+  background: #10ac84;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* Make canvas responsive */
+@media (max-width: 800px) {
+  canvas {
+    width: 100%;
+    height: auto;
+  }
+}
+
+@media (max-width: 500px) {
+  h1 {
+    font-size: 2rem;
+  }
+  #toolbar {
+    flex-direction: column;
+    gap: 10px;
+  }
+  button, input[type="range"], input[type="color"] {
+    width: 100%;
+  }
+}
 
