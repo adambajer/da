@@ -8,8 +8,8 @@ const database = firebase.database();
 
 // Get references to DOM elements
 const canvas = document.getElementById('drawingCanvas');
-canvas.width = 1800;
-canvas.height = 800;
+canvas.width = 1600;
+canvas.height = 900;
 const ctx = canvas.getContext('2d');
 const colorPicker = document.getElementById('colorPicker');
 const brushSizeInput = document.getElementById('brushSize');
@@ -31,13 +31,15 @@ ctx.lineCap = 'round';
 // Event listeners for drawing
 canvas.addEventListener('mousedown', (e) => {
   drawing = true;
-  [currentX, currentY] = [e.offsetX, e.offsetY];
+  const rect = canvas.getBoundingClientRect();
+  [currentX, currentY] = [e.clientX - rect.left, e.clientY - rect.top];
 });
 
 canvas.addEventListener('mousemove', (e) => {
   if (!drawing) return;
-  drawLine(currentX, currentY, e.offsetX, e.offsetY);
-  [currentX, currentY] = [e.offsetX, e.offsetY];
+  const rect = canvas.getBoundingClientRect();
+  drawLine(currentX, currentY, e.clientX - rect.left, e.clientY - rect.top);
+  [currentX, currentY] = [e.clientX - rect.left, e.clientY - rect.top];
 });
 
 canvas.addEventListener('mouseup', () => {
