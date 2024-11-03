@@ -100,17 +100,15 @@ canvas.addEventListener('mousedown', (e) => {
 
 canvas.addEventListener('mousemove', (e) => { 
   realtimeListenerActive = true; // Disable real-time loading during drawing
-  // Update the brush preview position to follow the cursor precisely
-  const mouseX = e.offsetX;
+  const mouseX = e.offsetX; // Relative to canvas
   const mouseY = e.offsetY;
   updateBrushPreview(e.clientX, e.clientY);
   updateCursorIndicators(mouseX, mouseY);
-
+ 
   if (drawing) { // Only draw when the mouse is down
     const [mouseX, mouseY] = getMousePosition(e);
     updateBrushPreview(e.clientX, e.clientY);
     updateCursorIndicators(mouseX, mouseY);
-
     drawLine(currentX, currentY, mouseX, mouseY);
     [currentX, currentY] = [mouseX, mouseY];
     // saveCanvasState(); // Save canvas periodically during drawing
