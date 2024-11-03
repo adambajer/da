@@ -296,18 +296,22 @@ function loadCanvasFromFirebase() {
 
 function updateBrushPreview(mouseX, mouseY) {
   const rect = canvas.getBoundingClientRect();
-  const canvasX = mouseX - rect.left;
-  const canvasY = mouseY - rect.top;
+  const dpr = window.devicePixelRatio || 1;
+
+  // Calculate position relative to the canvas, adjusted for device pixel ratio if necessary
+  const canvasX = (mouseX - rect.left) * dpr;
+  const canvasY = (mouseY - rect.top) * dpr;
 
   // Update the size and position of the brush preview
   brushPreview.style.width = `${brushSize}px`;
   brushPreview.style.height = `${brushSize}px`;
   brushPreview.style.backgroundColor = brushColor;
 
-  // Center the brush preview over the mouse cursor, adjusting for canvas offset
-  brushPreview.style.left = `${canvasX - brushSize / 2}px`;
-  brushPreview.style.top = `${canvasY - brushSize / 2}px`;
+  // Position the brush preview directly based on mouse position, without additional canvas adjustments
+  brushPreview.style.left = `${mouseX - brushSize / 2}px`;
+  brushPreview.style.top = `${mouseY - brushSize / 2}px`;
 }
+
 
 function showInfoMessage(message) {
   infoMessage.innerHTML = `<span class="material-symbols-outlined green-checkmark">check</span> ${message}`;
