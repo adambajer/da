@@ -4,143 +4,43 @@
   <meta charset="UTF-8">
   <title>Tabule</title>
   <link rel="stylesheet" href="styles.css">
-  <style>
-    /* Cool CSS for Drawing App */
+  <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
 
-    body {
-      font-family: 'Roboto', sans-serif;
- 
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      overflow: hidden;
-    }
-
-  
-
-    #toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 15px;
-      margin-bottom: 20px;
-      padding: 15px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-    }
-
-    button, input[type="range"], input[type="color"] {
-      border: none;
-      border-radius: 8px;
-      padding: 10px 15px;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    button {
-      background: #ff416c;
-      color: #fff;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-    }
-
-    button:hover {
-      background: #ff4b2b;
-      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
-      transform: translateY(-2px);
-    }
-
-    input[type="range"] {
-      background: #fff;
-      cursor: pointer;
-    }
-
-    input[type="color"] {
-      height: 40px;
-      width: 40px;
-      padding: 0;
-      border: 2px solid #fff;
-    }
-
-    canvas {
-      background: #ffffff;
-      border: 3px solid #fff;
-      border-radius: 15px;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-      width: 1600px;
-      height: 800px;
-    }
-
-    #exportButton {
-      background: #1dd1a1;
-      color: #fff;
-      padding: 10px 15px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    #exportButton:hover {
-      background: #10ac84;
-      transform: translateY(-2px);
-      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
-    }
-
-    /* Info messages for auto save/load */
-    #infoMessage {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      background: rgba(0, 0, 0, 0.7);
-      color: #fff;
-      padding: 10px;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-      opacity: 0;
-      transition: opacity 0.5s ease;
-      font-size: 0.9rem;
-    }
-
-    #infoMessage.visible {
-      opacity: 1;
-    }
-
-    /* Make canvas responsive */
-    @media (max-width: 800px) {
-      canvas {
-        width: 1600px;
-        height: 800px;
-      }
-    }
-
-    @media (max-width: 500px) {
-      h1 {
-        font-size: 2rem;
-      }
-      #toolbar {
-        flex-direction: column;
-        gap: 10px;
-      }
-      button, input[type="range"], input[type="color"] {
-        width: 100%;
-      }
-    }
-  </style>
 </head>
 <body> 
-  <div id="toolbar">
-    <input type="color" id="colorPicker" value="#000000">
-    <input type="range" id="brushSize" min="1" max="50" value="5">
-  
-    <button id="downloadButton">Stáhni jako obrázek</button>
-    <button id="clearButton">Smaž</button>
+  <!-- Subtle menu button in the top left corner -->
+  <div id="menuButtonContainer" class="dropdown">
+    <button class="btn btn-light dropdown-toggle" type="button" id="menuButton" data-bs-toggle="dropdown" aria-expanded="false"> MENU
+    </button>
+    <ul class="dropdown-menu" aria-labelledby="menuButton">
+      <li><button id="downloadButton" class="dropdown-item">
+        <span class="material-symbols-outlined">download</span> Stažení obrázku
+      </button></li>
+      <li><button id="clearButton" class="dropdown-item">
+        <span class="material-symbols-outlined">delete</span> Smazání obsahu
+      </button></li>
+    </ul>
   </div>
-  <canvas id="drawingCanvas"></canvas>
+  <div id="container">
+    <div id="topRuler"></div>
+    <div id="leftRuler"></div>
+    <canvas id="drawingCanvas" width="1600" height="800"></canvas>
+ 
+
+  </div>    
+   <button id="toggleGridButton">
+    <span class="material-symbols-outlined">grid_off</span>
+  </button>
+    <!-- Snap toggle button at the bottom right -->
+    <button id="toggleSnapButton">
+      <span class="material-symbols-outlined">toggle_on</span>
+    </button>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" />
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>

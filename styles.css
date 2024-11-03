@@ -2,93 +2,51 @@
 
 body {
   font-family: 'Roboto', sans-serif;
-  background: linear-gradient(to right, #6a11cb, #2575fc);
-  color: #fff;
+
+  background: #eaeaea !important;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   margin: 0;
+  overflow: hidden;
 }
 
-h1 {
-  margin-bottom: 20px;
-  font-size: 3rem;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-#toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 15px;
-  margin-bottom: 20px;
-  padding: 15px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-button, input[type="range"], input[type="color"] {
-  border: none;
-  border-radius: 8px;
-  padding: 10px 15px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-button {
-  background: #ff416c;
-  color: #fff;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-}
-
-button:hover {
-  background: #ff4b2b;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
-  transform: translateY(-2px);
-}
-
-input[type="range"] {
-  background: #fff;
-  cursor: pointer;
-}
-
-input[type="color"] {
-  height: 40px;
-  width: 40px;
-  padding: 0;
-  border: 2px solid #fff;
-}
-
+ 
 canvas {
-  border: 3px solid #fff;
-  border-radius: 15px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  background: #ffffff; 
+  width: 1600px;
+  height: 800px;
+   border: 1px solid black;
 }
 
-#exportButton {
-  background: #1dd1a1;
+ 
+
+/* Info messages for auto save/load */
+#infoMessage {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.7);
   color: #fff;
-  padding: 10px 15px;
+  padding: 10px;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  font-size: 0.9rem;
 }
 
-#exportButton:hover {
-  background: #10ac84;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+#infoMessage.visible {
+  opacity: 1;
 }
 
 /* Make canvas responsive */
 @media (max-width: 800px) {
   canvas {
-    width: 100%;
-    height: auto;
+    width: 1600px;
+    height: 800px;
   }
 }
 
@@ -103,5 +61,139 @@ canvas {
   button, input[type="range"], input[type="color"] {
     width: 100%;
   }
+}   
+#radialColorPicker div {
+  cursor:pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+ /* CSS styling for the rulers */
+#horizontalRuler, #verticalRuler {
+  background: #f9f9f9;
+  color: #000;
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  line-height: 1;
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+}
+
+#horizontalRuler { 
+  border-bottom: 1px solid #ccc;
+}
+
+#verticalRuler { 
+  border-right: 1px solid #ccc;
+}
+
+.ruler-tick {
+  position: absolute;
+  background: #000;
+}
+
+.ruler-number {
+  position: absolute;
+  text-align: center;
+  color: #000;
+}
+.crosshair {
+  position: absolute;
+    pointer-events: none;
+  z-index: 20; /* Higher z-index to ensure visibility */
+}
+
+#cursorX {
+  height: 40px; /* Vertical red tick on horizontal ruler */
+ border-left: 1px solid blue;
+  
+  width: 40px;
+  text-align: center;
+}
+
+#cursorY {
+   width: 60px; /* Horizontal red tick on vertical ruler */
+  border-top: 1px solid red;
+ 
+}
+   /* CSS for Grid Overlay */
+   #gridOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Allow interactions with canvas underneath */
+    background-size: 0; /* Initially hidden */
+    opacity: 0; /* Start hidden */
+    transition: opacity 0.3s ease-in-out; /* Smooth fade in/out */
+  }
+  
+  #toggleGridButton {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.3s ease-in-out;
+  }
+
+  #toggleGridButton:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  }
+  #toggleSnapButton {
+    position: fixed;
+    bottom: 20px;
+    right: 80px; 
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.3s ease-in-out;
+  }
+
+  #toggleSnapButton:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  }div#menuButtonContainer {
+    position: absolute;
+    left: 0;
+    top: 0;
+}#drawingCanvas {
+  position: relative; 
+ }
+
+.grid-density-1 {
+  background-size: 50px 50px;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+}
+
+.grid-density-2 {
+  background-size: 25px 25px;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+}
+
+.grid-density-3 {
+  background-size: 10px 10px;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+}
+
+.grid-hidden {
+  background-image: none;
 }
 
