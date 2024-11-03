@@ -86,13 +86,16 @@ toggleSnapButton.addEventListener('click', () => {
 // Event listeners for drawing and snapping
 canvas.addEventListener('mousedown', (e) => {
   drawing = true;
+  realtimeListenerActive = false; // Disable real-time loading during drawing
+
   const [mouseX, mouseY] = getMousePosition(e);
   [currentX, currentY] = [mouseX, mouseY];
 });
 
 canvas.addEventListener('mousemove', (e) => {
   const [mouseX, mouseY] = getMousePosition(e);
-
+  drawing = true;
+  realtimeListenerActive = false; // Disable real-time loading during drawing
   // Update the brush preview position to follow the cursor precisely
   updateBrushPreview(e.clientX, e.clientY);
   updateCursorIndicators(mouseX, mouseY);
@@ -100,19 +103,25 @@ canvas.addEventListener('mousemove', (e) => {
   if (drawing) {
     drawLine(currentX, currentY, mouseX, mouseY);
     [currentX, currentY] = [mouseX, mouseY];
+    saveCanvasState(); // Save canvas periodically during drawing
+
   }
 });
 
 canvas.addEventListener('mouseup', () => {
   drawing = false;
-  autoSaveDrawing();
+  saveCanvasState(); // Save canvas state when the line is ended
+  setTimeout(() => {
+    realtimeListenerActive = true; // Re-enable real-time loading after saving
+    loadCanvasFromFirebase(); // Load the latest state from Firebase
+  }, 500); // Adding a slight delay to avoid conflicts between save/load
 });
+
 
 canvas.addEventListener('mouseout', () => {
   drawing = false;
 });
 
-// Function to get mouse position relative to the canvas
 function getMousePosition(event) {
   const rect = canvas.getBoundingClientRect();
   let mouseX = Math.round(event.clientX - rect.left);
@@ -124,13 +133,8 @@ function getMousePosition(event) {
     mouseY = Math.round(mouseY / gridSize) * gridSize;
   }
 
-  // Ensure coordinates do not go below 0 (boundary limits)
-  mouseX = Math.max(0, mouseX);
-  mouseY = Math.max(0, mouseY);
-
   return [mouseX, mouseY];
 }
-
 
 function getGridSize() {
   switch (currentGridIndex) {
@@ -211,6 +215,51 @@ function drawLine(x1, y1, x2, y2) {
   ctx.stroke();
   ctx.closePath();
 }
+
+function saveCanvasState() {
+  const dataURL = canvas.toDataURL('image/png');
+  database.ref('drawings/autoSave').set({
+    imageData: dataURL,
+    timestamp: Date.now()
+  }, (error) => {
+    if (error) {
+      showInfoMessage('Chyba uložení: ' + error);
+    } else {
+      showInfoMessage('Uloženo');
+    }
+  });
+}
+// Load the canvas state from Firebase
+function loadCanvasFromFirebase() {
+  if (!realtimeListenerActive) return;
+
+  database.ref('drawings/autoSave').once('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data && data.imageData) {
+      const img = new Image();
+      img.src = data.imageData;
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        showInfoMessage('Canvas updated from server.');
+      };
+    }
+  });
+}
+database.ref('drawings/autoSave').on('value', (snapshot) => {
+  if (!realtimeListenerActive) return;
+
+  const data = snapshot.val();
+  if (data && data.imageData) {
+    const img = new Image();
+    img.src = data.imageData;
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      showInfoMessage('Canvas updated from server.');
+    };
+  }
+});
 
 function updateBrushPreview(x, y) {
   // Update the size and position of the brush preview
