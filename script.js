@@ -253,17 +253,26 @@ function undo() {
       historyStack.pop(); // Remove the current state
       const previousState = historyStack[historyStack.length - 1]; // Get the previous state
 
+      // Temporarily disable real-time loading to prevent reloading after undo
+      realtimeListenerActive = false;
+
       const img = new Image();
       img.src = previousState;
       img.onload = () => {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0);
           showInfoMessage('Step back');
+
+          // Re-enable real-time loading after a short delay to prevent immediate reload
+          setTimeout(() => {
+              realtimeListenerActive = true;
+          }, 500); // Adjust delay as needed
       };
   } else {
       showInfoMessage('No more steps to undo.');
   }
 }
+
 const undoButton = document.getElementById('undoButton');
 undoButton.addEventListener('click', undo);
 
