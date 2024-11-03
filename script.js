@@ -95,10 +95,11 @@ canvas.addEventListener('mousedown', (e) => {
   [currentX, currentY] = [mouseX, mouseY];
 });
 
-canvas.addEventListener('mousemove', (e) => {
-  const [mouseX, mouseY] = getMousePosition(e);
+canvas.addEventListener('mousemove', (e) => { 
   realtimeListenerActive = true; // Disable real-time loading during drawing
   // Update the brush preview position to follow the cursor precisely
+  const mouseX = e.offsetX;
+  const mouseY = e.offsetY;
   updateBrushPreview(e.clientX, e.clientY);
   updateCursorIndicators(mouseX, mouseY);
 
@@ -256,15 +257,19 @@ function loadCanvasFromFirebase() {
   });
 }
 
-function updateBrushPreview(x, y) {
+function updateBrushPreview(mouseX, mouseY) {
+  const rect = canvas.getBoundingClientRect();
+  const canvasX = mouseX - rect.left;
+  const canvasY = mouseY - rect.top;
+
   // Update the size and position of the brush preview
   brushPreview.style.width = `${brushSize}px`;
   brushPreview.style.height = `${brushSize}px`;
   brushPreview.style.backgroundColor = brushColor;
 
-  // Center the brush preview over the mouse cursor
-  brushPreview.style.left = `${x - brushSize / 2}px`;
-  brushPreview.style.top = `${y - brushSize / 2}px`;
+  // Center the brush preview over the mouse cursor, adjusting for canvas offset
+  brushPreview.style.left = `${canvasX - brushSize / 2}px`;
+  brushPreview.style.top = `${canvasY - brushSize / 2}px`;
 }
 
 function showInfoMessage(message) {
