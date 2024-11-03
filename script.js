@@ -7,11 +7,15 @@ const canvas = document.getElementById('drawingCanvas');
 canvas.width = 1600;
 canvas.height = 800;
 const ctx = canvas.getContext('2d');
+
+
+ctx.lineCap = 'round'; // Gives round edges to the line segments
+ctx.lineJoin = 'round'; // Ensures corners are rounded and connected smoothly
 const clearButton = document.getElementById('clearButton');
 const downloadButton = document.getElementById('downloadButton');
 const infoMessage = document.createElement('div');
 const toggleSnapButton = document.getElementById('toggleSnapButton');
-
+let realtimeListenerActive
 document.body.appendChild(infoMessage);
 infoMessage.id = 'infoMessage';
 
@@ -42,7 +46,7 @@ let brushColor = '#000000';
 let gridDensity = 0;
 let snapToGrid = false;
 // Reference to the grid toggle button
-const toggleGridButton = document.getElementById('toggleGridButton'); 
+const toggleGridButton = document.getElementById('toggleGridButton');
 toggleSnapButton.id = 'toggleSnapButton';
 toggleSnapButton.style.display = 'none';
 toggleSnapButton.textContent = 'Snap OFF';
@@ -83,10 +87,9 @@ toggleSnapButton.addEventListener('click', () => {
   toggleSnapButton.textContent = snapToGridEnabled ? 'Snap ON' : 'Snap OFF';
 });
 
-// Event listeners for drawing and snapping
 canvas.addEventListener('mousedown', (e) => {
   drawing = true;
-  realtimeListenerActive = false; // Disable real-time loading during drawing
+  realtimeListenerActive = true; // Disable real-time loading during drawing
 
   const [mouseX, mouseY] = getMousePosition(e);
   [currentX, currentY] = [mouseX, mouseY];
@@ -94,17 +97,22 @@ canvas.addEventListener('mousedown', (e) => {
 
 canvas.addEventListener('mousemove', (e) => {
   const [mouseX, mouseY] = getMousePosition(e);
-  drawing = true;
-  realtimeListenerActive = false; // Disable real-time loading during drawing
+  realtimeListenerActive = true; // Disable real-time loading during drawing
   // Update the brush preview position to follow the cursor precisely
   updateBrushPreview(e.clientX, e.clientY);
   updateCursorIndicators(mouseX, mouseY);
 
-  if (drawing) {
+  if (drawing) { // Only draw when the mouse is down
+    const [mouseX, mouseY] = getMousePosition(e);
+    updateBrushPreview(e.clientX, e.clientY);
+    updateCursorIndicators(mouseX, mouseY);
+
     drawLine(currentX, currentY, mouseX, mouseY);
     [currentX, currentY] = [mouseX, mouseY];
-    saveCanvasState(); // Save canvas periodically during drawing
-
+    // saveCanvasState(); // Save canvas periodically during drawing
+  }
+  else {
+    loadCanvasFromFirebase()
   }
 });
 
@@ -212,6 +220,7 @@ function drawLine(x1, y1, x2, y2) {
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
+
   ctx.stroke();
   ctx.closePath();
 }
@@ -241,25 +250,11 @@ function loadCanvasFromFirebase() {
       img.onload = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-        showInfoMessage('Canvas updated from server.');
+        showInfoMessage('Aktualizováno');
       };
     }
   });
 }
-database.ref('drawings/autoSave').on('value', (snapshot) => {
-  if (!realtimeListenerActive) return;
-
-  const data = snapshot.val();
-  if (data && data.imageData) {
-    const img = new Image();
-    img.src = data.imageData;
-    img.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
-      showInfoMessage('Canvas updated from server.');
-    };
-  }
-});
 
 function updateBrushPreview(x, y) {
   // Update the size and position of the brush preview
@@ -273,12 +268,11 @@ function updateBrushPreview(x, y) {
 }
 
 function showInfoMessage(message) {
-  infoMessage.textContent = message;
+  infoMessage.innerHTML = `<span class="material-symbols-outlined green-checkmark">check</span> ${message}`;
+
   infoMessage.style.position = 'fixed';
   infoMessage.style.bottom = '20px';
-  infoMessage.style.left = '20px';
-  infoMessage.style.backgroundColor = '#333';
-  infoMessage.style.color = '#fff';
+  infoMessage.style.left = '20px'; 
   infoMessage.style.padding = '10px';
   infoMessage.style.borderRadius = '5px';
   infoMessage.style.opacity = '1';
@@ -288,6 +282,7 @@ function showInfoMessage(message) {
     infoMessage.style.opacity = '0';
   }, 3000);
 }
+
 
 function autoSaveDrawing() {
   const dataURL = canvas.toDataURL();
@@ -314,7 +309,7 @@ function loadDrawing() {
       img.onload = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-        showInfoMessage('Loaded.');
+        showInfoMessage('Aktualizováno');
       };
     } else {
       showInfoMessage('Nic uloženého');
@@ -477,7 +472,7 @@ for (let i = 0; i <= canvas.width; i += 5) {
   tick.style.width = '1px';
   tick.style.height = i % 50 === 0 ? '15px' : i % 10 === 0 ? '5px' : '5px';
   tick.style.left = `${i}px`;
-  tick.style.bottom = '0';
+  tick.style.top = '0';
   horizontalRuler.appendChild(tick);
 
   // Add numbers at every 100 pixels, centered below tick mark
@@ -486,9 +481,9 @@ for (let i = 0; i <= canvas.width; i += 5) {
     label.className = 'ruler-number';
     label.style.bottom = '8px';
     label.style.left = `${i - 30}px`;
-    
+
     label.style.width = `30px`;
-     label.textContent = i;
+    label.textContent = i;
     horizontalRuler.appendChild(label);
   }
 }
@@ -500,7 +495,7 @@ for (let i = 0; i <= canvas.height; i += 5) {
   tick.style.height = '1px';
   tick.style.width = i % 50 === 0 ? '15px' : i % 10 === 0 ? '5px' : '5px';
   tick.style.top = `${i}px`;
-  tick.style.right = '0';
+  tick.style.left = '0';
   verticalRuler.appendChild(tick);
 
   // Add numbers at every 100 pixels, centered beside tick mark
@@ -509,7 +504,7 @@ for (let i = 0; i <= canvas.height; i += 5) {
     label.className = 'ruler-number';
     label.style.top = `${i - 10}px`;
     label.style.right = '8px';
-     label.textContent = i;
+    label.textContent = i;
     verticalRuler.appendChild(label);
   }
 }
@@ -528,3 +523,30 @@ function updateCursorIndicators(x, y) {
   cursorYTick.textContent = `${y}`;
   cursorYTick.style.transform = `translateY(-50%)`; // Center beside the tick
 }  
+// Position and resize rulers based on canvas dimensions
+function positionRulers() {
+  // Position the horizontal ruler at the top of the canvas
+  horizontalRuler.style.position = 'absolute';
+  horizontalRuler.style.top = `${canvas.offsetTop}px`;
+  horizontalRuler.style.left = `${canvas.offsetLeft}px`;
+  horizontalRuler.style.width = `${canvas.width}px`;
+
+  // Position the vertical ruler to the left of the canvas
+  verticalRuler.style.position = 'absolute';
+  verticalRuler.style.top = `${canvas.offsetTop}px`;
+  verticalRuler.style.left = `${canvas.offsetLeft}px`;
+  verticalRuler.style.height = `${canvas.height}px`;
+}
+
+// Call this function on page load to ensure correct initial positioning
+window.addEventListener('load', positionRulers);
+
+// Call this function on window resize to keep rulers aligned
+window.addEventListener('resize', positionRulers);
+
+// If your canvas dimensions change dynamically in code, make sure to call positionRulers() after changing them
+function resizeCanvas(newWidth, newHeight) {
+  canvas.width = newWidth;
+  canvas.height = newHeight;
+  positionRulers();
+}
