@@ -45,6 +45,9 @@ let brushSize = 10;
 let brushColor = '#000000';
 let gridDensity = 0;
 let snapToGrid = false;
+const historyStack = [];
+const maxHistorySteps = 10;
+
 // Reference to the grid toggle button
 const toggleGridButton = document.getElementById('toggleGridButton');
 toggleSnapButton.id = 'toggleSnapButton';
@@ -228,17 +231,44 @@ function drawLine(x1, y1, x2, y2) {
 
 function saveCanvasState() {
   const dataURL = canvas.toDataURL('image/png');
+
+  // Add the current state to the history stack
+  if (historyStack.length >= maxHistorySteps) {
+      historyStack.shift(); // Remove the oldest state if we exceed max steps
+  }
+  historyStack.push(dataURL);
+
+  // Save to Firebase or wherever needed
   database.ref('drawings/autoSave').set({
-    imageData: dataURL,
-    timestamp: Date.now()
+      imageData: dataURL,
+      timestamp: Date.now()
   }, (error) => {
-    if (error) {
-      showInfoMessage('Chyba uložení: ' + error);
-    } else {
-      showInfoMessage('Uloženo');
-    }
+      if (error) {
+          showInfoMessage('Chyba uložení: ' + error);
+      } else {
+          showInfoMessage('Uloženo');
+      }
   });
 }
+function undo() {
+  if (historyStack.length > 1) { // Ensure there's a previous state to revert to
+      historyStack.pop(); // Remove the current state
+      const previousState = historyStack[historyStack.length - 1]; // Get the previous state
+
+      const img = new Image();
+      img.src = previousState;
+      img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          showInfoMessage('Step back');
+      };
+  } else {
+      showInfoMessage('No more steps to undo.');
+  }
+}
+const undoButton = document.getElementById('undoButton');
+undoButton.addEventListener('click', undo);
+
 // Load the canvas state from Firebase
 function loadCanvasFromFirebase() {
   if (!realtimeListenerActive) return;
