@@ -411,6 +411,8 @@ function loadDrawing() {
         const img = new Image();
         img.src = drawingData;
         img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
           // Clear the current canvas before loading the new drawing
            ctx.drawImage(img, 0, 0);
           showInfoMessage('Drawing updated from server.');
@@ -745,21 +747,14 @@ colorPickerButton.addEventListener('click', (e) => {
   createRadialColorPicker(x, y);
 });
 
-// JavaScript to handle the buttons
-const increaseBrushSizeButton = document.getElementById('increaseBrushSize');
-const decreaseBrushSizeButton = document.getElementById('decreaseBrushSize');
-
-increaseBrushSizeButton.addEventListener('click', () => {
-  brushSize = Math.min(brushSize + 1, 100);
+const brushSizeSlider = document.getElementById('brushSizeSlider');
+ 
+brushSizeSlider.addEventListener('input', () => {
+  brushSize = parseInt(brushSizeSlider.value, 10);
   ctx.lineWidth = brushSize;
   updateBrushPreview();
 });
 
-decreaseBrushSizeButton.addEventListener('click', () => {
-  brushSize = Math.max(brushSize - 1, 1);
-  ctx.lineWidth = brushSize;
-  updateBrushPreview();
-});
 // Prevent zooming via keyboard
 document.addEventListener('keydown', function (e) {
   if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
