@@ -278,7 +278,7 @@ input[type="range"]:focus::-moz-range-thumb {
   background-image: none;
 }
 
-.menubut{position: absolute;left: 0px;top: 0px;z-index: 9999;}
+.menubut{position: absolute;right: 0px;top: 0px;z-index: 9999;}
 .menubut button {
   background: #fff;
   border: 1px solid #ccc; 
