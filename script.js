@@ -92,46 +92,34 @@ toggleSnapButton.addEventListener('click', () => {
 
 canvas.addEventListener('mousedown', (e) => {
   drawing = true;
-  realtimeListenerActive = true; // Disable real-time loading during drawing
+  realtimeListenerActive = false; // Disable real-time loading during drawing
 
   const [mouseX, mouseY] = getMousePosition(e);
   [currentX, currentY] = [mouseX, mouseY];
 });
 
 canvas.addEventListener('mousemove', (e) => { 
-  realtimeListenerActive = true; // Disable real-time loading during drawing
   const mouseX = e.offsetX; // Relative to canvas
   const mouseY = e.offsetY;
   updateBrushPreview(e.clientX, e.clientY);
   updateCursorIndicators(mouseX, mouseY);
- 
   if (drawing) { // Only draw when the mouse is down
     const [mouseX, mouseY] = getMousePosition(e);
-    updateBrushPreview(e.clientX, e.clientY);
-    updateCursorIndicators(mouseX, mouseY);
     drawLine(currentX, currentY, mouseX, mouseY);
     [currentX, currentY] = [mouseX, mouseY];
-    // saveCanvasState(); // Save canvas periodically during drawing
-  }
-  else {
-    loadCanvasFromFirebase()
   }
 });
 
 canvas.addEventListener('mouseup', () => {
   drawing = false;
   saveCanvasState(); // Save canvas state when the line is ended
-  setTimeout(() => {
-    realtimeListenerActive = true; // Re-enable real-time loading after saving
-    loadCanvasFromFirebase(); // Load the latest state from Firebase
-  }, 0); // Adding a slight delay to avoid conflicts between save/load
+  realtimeListenerActive = true; // Re-enable real-time loading after saving
 });
-
 
 canvas.addEventListener('mouseout', () => {
   drawing = false;
+  realtimeListenerActive = true;
 });
-
 function getMousePosition(event) {
   const rect = canvas.getBoundingClientRect();
   let mouseX = Math.round(event.clientX - rect.left);
@@ -227,27 +215,27 @@ function drawLine(x1, y1, x2, y2) {
   ctx.closePath();
 }
 
+let saveTimeout;
+
 function saveCanvasState() {
-  const dataURL = canvas.toDataURL('image/png');
-
-  // Add the current state to the history stack
-  if (historyStack.length >= maxHistorySteps) {
-      historyStack.shift(); // Remove the oldest state if we exceed max steps
-  }
-  historyStack.push(dataURL);
-
-  // Save to Firebase or wherever needed
-  database.ref('drawings/autoSave').set({
+  clearTimeout(saveTimeout); // Clear any previous timeout
+  saveTimeout = setTimeout(() => {
+    const dataURL = canvas.toDataURL('image/png');
+    
+    // Add to Firebase
+    database.ref('drawings/autoSave').set({
       imageData: dataURL,
       timestamp: Date.now()
-  }, (error) => {
+    }, (error) => {
       if (error) {
-          showInfoMessage('Chyba uložení: ' + error);
+        showInfoMessage('Chyba uložení: ' + error);
       } else {
-          showInfoMessage('Uloženo');
+        showInfoMessage('Uloženo');
       }
-  });
+    });
+  }, 500); // Throttle saving to every 500ms
 }
+
 function undo() {
   if (historyStack.length > 1) { // Ensure there's a previous state to revert to
       historyStack.pop(); // Remove the current state
@@ -280,18 +268,21 @@ undoButton.addEventListener('click', undo);
 function loadCanvasFromFirebase() {
   if (!realtimeListenerActive) return;
 
-  database.ref('drawings/autoSave').once('value', (snapshot) => {
+// Replace `loadCanvasFromFirebase()` call with a persistent listener
+database.ref('drawings/autoSave').on('value', (snapshot) => {
+  if (!drawing) { // Only update if the user is not currently drawing
     const data = snapshot.val();
     if (data && data.imageData) {
       const img = new Image();
       img.src = data.imageData;
       img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
+         ctx.drawImage(img, 0, 0);
         showInfoMessage('Aktualizováno');
       };
     }
-  });
+  }
+});
+
 }
 
 function updateBrushPreview(mouseX, mouseY) {
