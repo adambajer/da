@@ -97,6 +97,15 @@ canvas.addEventListener('mousedown', (e) => {
   const [mouseX, mouseY] = getMousePosition(e);
   [currentX, currentY] = [mouseX, mouseY];
 });
+// Add touch event listeners to support mobile devices
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault(); // Prevent scrolling while drawing
+  drawing = true;
+  realtimeListenerActive = true; // Disable real-time loading during drawing
+
+  const [touchX, touchY] = getTouchPosition(e);
+  [currentX, currentY] = [touchX, touchY];
+});
 
 canvas.addEventListener('mousemove', (e) => { 
   realtimeListenerActive = true; // Disable real-time loading during drawing
@@ -117,21 +126,56 @@ canvas.addEventListener('mousemove', (e) => {
     loadCanvasFromFirebase()
   }
 });
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  realtimeListenerActive = true; // Disable real-time loading during drawing
 
+  const [touchX, touchY] = getTouchPosition(e);
+  updateBrushPreview(e.touches[0].clientX, e.touches[0].clientY);
+  updateCursorIndicators(touchX, touchY);
+
+  if (drawing) { // Only draw when touch is active
+    drawLine(currentX, currentY, touchX, touchY);
+    [currentX, currentY] = [touchX, touchY];
+  } else {
+    loadCanvasFromFirebase();
+  }
+});
 canvas.addEventListener('mouseup', () => {
   drawing = false;
   saveCanvasState(); // Save canvas state when the line is ended
   setTimeout(() => {
     realtimeListenerActive = true; // Re-enable real-time loading after saving
     loadCanvasFromFirebase(); // Load the latest state from Firebase
-  }, 500); // Adding a slight delay to avoid conflicts between save/load
+  }, 0); // Adding a slight delay to avoid conflicts between save/load
+});
+canvas.addEventListener('touchend', () => {
+  drawing = false;
+  saveCanvasState(); // Save canvas state when the line ends
+  setTimeout(() => {
+    realtimeListenerActive = true; // Re-enable real-time loading after saving
+    loadCanvasFromFirebase(); // Load the latest state from Firebase
+  }, 0); // Adding a slight delay to avoid conflicts between save/load
 });
 
 
 canvas.addEventListener('mouseout', () => {
   drawing = false;
 });
+// Utility function to get touch position on the canvas
+function getTouchPosition(event) {
+  const rect = canvas.getBoundingClientRect();
+  let touchX = Math.round(event.touches[0].clientX - rect.left);
+  let touchY = Math.round(event.touches[0].clientY - rect.top);
 
+  if (snapToGridEnabled) {
+    const gridSize = getGridSize();
+    touchX = Math.round(touchX / gridSize) * gridSize;
+    touchY = Math.round(touchY / gridSize) * gridSize;
+  }
+
+  return [touchX, touchY];
+}
 function getMousePosition(event) {
   const rect = canvas.getBoundingClientRect();
   let mouseX = Math.round(event.clientX - rect.left);
