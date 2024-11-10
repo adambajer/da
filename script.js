@@ -336,7 +336,7 @@ function autoSaveDrawing() {
     if (error) {
       showInfoMessage('Chyba uložení: ' + error);
     } else {
-      showInfoMessage('Uloženo');
+      showInfoMessage('Saved');
     }
   });
 }
@@ -357,7 +357,7 @@ function loadDrawing() {
 
           // Clear the current canvas before loading the new drawing
            ctx.drawImage(img, 0, 0);
-          showInfoMessage('Drawing updated from server.');
+          showInfoMessage('Updated');
           loadingOverlay.style.display = 'none'; // Hide the loading overlay when ready
 
         };
