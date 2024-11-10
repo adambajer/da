@@ -750,3 +750,25 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 /* --- End of Loading Animation --- */
+// JavaScript to handle the button
+const colorPickerButton = document.getElementById('colorPickerButton');
+
+colorPickerButton.addEventListener('click', (e) => {
+  e.preventDefault();
+  createRadialColorPicker(e.clientX, e.clientY);
+});
+// JavaScript to handle the buttons
+const increaseBrushSizeButton = document.getElementById('increaseBrushSize');
+const decreaseBrushSizeButton = document.getElementById('decreaseBrushSize');
+
+increaseBrushSizeButton.addEventListener('click', () => {
+  brushSize = Math.min(brushSize + 1, 100);
+  ctx.lineWidth = brushSize;
+  updateBrushPreview();
+});
+
+decreaseBrushSizeButton.addEventListener('click', () => {
+  brushSize = Math.max(brushSize - 1, 1);
+  ctx.lineWidth = brushSize;
+  updateBrushPreview();
+});
