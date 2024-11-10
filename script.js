@@ -202,9 +202,17 @@ downloadButton.addEventListener('click', () => {
   showInfoMessage('Obrázek stažen');
 });
 
-// Automatic load on page load
+// Initialize periodic loading after the window has loaded
 window.addEventListener('load', () => {
-  loadDrawing();
+  loadDrawing(); // Initial load on page load
+
+  // Start the periodic loading timer
+  const LOAD_INTERVAL = 2000; // 5 seconds
+  setInterval(() => {
+    if (!drawing) { // Only load if the user is not drawing
+      loadDrawing();
+    }
+  }, LOAD_INTERVAL);
 });
 
 function drawLine(x1, y1, x2, y2) {
@@ -265,7 +273,8 @@ function undo() {
 const undoButton = document.getElementById('undoButton');
 undoButton.addEventListener('click', undo);
 
-// Load the canvas state from Firebase
+// Load the canvas state from Firebase/*
+/*
 function loadCanvasFromFirebase() {
   if (!realtimeListenerActive) return;
 
@@ -284,8 +293,7 @@ database.ref('drawings/autoSave').on('value', (snapshot) => {
   }
 });
 
-}
-
+}*/
 function updateBrushPreview(mouseX, mouseY) {
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
@@ -318,7 +326,7 @@ function showInfoMessage(message) {
   setTimeout(() => {
     infoMessage.style.transition = 'opacity 1s';
     infoMessage.style.opacity = '0';
-  }, 3000);
+  }, 500);
 }
 
 
@@ -336,22 +344,30 @@ function autoSaveDrawing() {
     }
   });
 }
+let lastLoadedTimestamp = 0; // Initialize to track the last loaded drawing
 
 function loadDrawing() {
   database.ref('drawings/autoSave').once('value', (snapshot) => {
     const data = snapshot.val();
     if (data && data.imageData) {
-      const drawingData = data.imageData;
-      const img = new Image();
-      img.src = drawingData;
-      img.onload = () => {
-         ctx.drawImage(img, 0, 0);
-        showInfoMessage('Aktualizováno');
-        loadingOverlay.style.display = 'none'; // Hide the loading overlay when ready
-      };
+      if (data.timestamp && data.timestamp > lastLoadedTimestamp) { // Check if the drawing is newer
+        lastLoadedTimestamp = data.timestamp; // Update the last loaded timestamp
+        
+        const drawingData = data.imageData;
+        const img = new Image();
+        img.src = drawingData;
+        img.onload = () => {
+          // Clear the current canvas before loading the new drawing
+           ctx.drawImage(img, 0, 0);
+          showInfoMessage('Drawing updated from server.');
+          loadingOverlay.style.display = 'none'; // Hide the loading overlay when ready
+
+        };
+      } else {
+        console.log('No new drawing to load.');
+      }
     } else {
-      showInfoMessage('Nic uloženého');
-      loadingOverlay.style.display = 'none'; // Hide the loading overlay if there's no data
+      showInfoMessage('No saved drawing found.');
     }
   });
 }
