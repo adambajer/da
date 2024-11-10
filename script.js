@@ -253,13 +253,16 @@ downloadButton.addEventListener('click', () => {
 });
  
 
+// Set these properties once for smooth lines
+ctx.lineJoin = 'round';
+ctx.lineCap = 'round';
+ctx.lineWidth = 2;  // Adjust as needed for smoother lines
+
 function drawLine(x1, y1, x2, y2) {
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
-
   ctx.stroke();
-  ctx.closePath();
 }
 
 let saveTimeout;
