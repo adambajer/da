@@ -146,8 +146,9 @@ canvas {
     justify-content: center;
     cursor: pointer;
  
+   
+    text-align: center;    height: 30px;
     width: 30px;
-    text-align: center;
   }
 #colorPickerButton {
   outline: none;
@@ -163,9 +164,9 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-    width: 30px;
-   height: 30px;
+  cursor: pointer;    height: 30px;
+  width: 30px;
+ 
 }
 .drawcont {
   position: relative;
@@ -286,7 +287,8 @@ input[type="range"]:focus::-moz-range-thumb {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-   padding: 4px;
+  height: 30px;
+  width: 30px;
 }    .green-checkmark {
   color: green;
 } 
