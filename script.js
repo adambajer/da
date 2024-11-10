@@ -626,7 +626,7 @@ for (let i = 0; i <= canvas.width; i += 5) {
   const tick = document.createElement('div');
   tick.className = 'ruler-tick';
   tick.style.width = '1px';
-  tick.style.height = i % 50 === 0 ? '15px' : i % 10 === 0 ? '5px' : '5px';
+  tick.style.height = i % 100 === 0 ? '15px' : '5px';
   tick.style.left = `${i}px`;
   tick.style.top = '0';
   horizontalRuler.appendChild(tick);
@@ -635,7 +635,7 @@ for (let i = 0; i <= canvas.width; i += 5) {
   if (i % 100 === 0 && i > 0) {
     const label = document.createElement('div');
     label.className = 'ruler-number';
-    label.style.bottom = '-28px';
+    label.style.bottom = '-18px';
     label.style.left = `${i - 30}px`;
 
     label.style.width = `30px`;
@@ -649,7 +649,7 @@ for (let i = 0; i <= canvas.height; i += 5) {
   const tick = document.createElement('div');
   tick.className = 'ruler-tick';
   tick.style.height = '1px';
-  tick.style.width = i % 50 === 0 ? '20px' : i % 10 === 0 ? '5px' : '5px';
+  tick.style.width = i % 100 === 0 ? '20px' : '5px';
   tick.style.top = `${i}px`;
   tick.style.left = '0';
   verticalRuler.appendChild(tick);
@@ -659,7 +659,7 @@ for (let i = 0; i <= canvas.height; i += 5) {
     const label = document.createElement('div');
     label.className = 'ruler-number';
     label.style.top = `${i - 10}px`;
-    label.style.right = '-28px';
+    label.style.right = '-24px';
     label.textContent = i;
     verticalRuler.appendChild(label);
   }
