@@ -723,3 +723,31 @@ document.addEventListener('touchend', function (e) {
   }
   lastTouchEnd = now;
 }, { passive: false });
+const eraserButton = document.getElementById('eraserButton');
+let isErasing = false;
+
+// Set the default brush color
+
+eraserButton.addEventListener('click', () => {
+  brushColor = '#000000'; // or whatever color you're using by default
+
+  isErasing = !isErasing; // Toggle erasing mode
+  if (isErasing) {
+    ctx.globalCompositeOperation = 'destination-out'; // Set eraser mode (transparent color)
+    ctx.strokeStyle = 'rgba(0, 0, 0, 1)'; // Erasing is transparent, color doesn't matter here
+    eraserButton.style.border = '1px solid red'; // Highlight eraser button with a red border
+  } else {
+    ctx.globalCompositeOperation = 'source-over'; // Set back to normal drawing mode
+    ctx.strokeStyle = brushColor; // Reset to normal brush color
+    eraserButton.style.border = 'none'; // Remove the red border from eraser button
+  }
+});
+
+// Function to set the brush color (in case you have a color picker)
+function setBrushColor(color) {
+  brushColor = color;
+  if (!isErasing) {
+    ctx.strokeStyle = brushColor; // Only set brush color if not erasing
+  }
+}
+ 
