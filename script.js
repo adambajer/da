@@ -4,8 +4,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();// Get references to DOM elements
 const canvas = document.getElementById('drawingCanvas');
-canvas.width = 1200;
-canvas.height = 700;
+canvas.width = 1000;
+canvas.height = 600;
 const ctx = canvas.getContext('2d');
 
 
@@ -35,8 +35,7 @@ brushPreview.id = 'brushPreview';
 brushPreview.style.position = 'absolute';
 brushPreview.style.pointerEvents = 'none';
 brushPreview.style.borderRadius = '50%';
-brushPreview.style.border = '1px solid #000000'; // Optional: Outline to help see the brush on different backgrounds
-
+ 
 let drawing = false;
 let currentX = 0;
 let currentY = 0;

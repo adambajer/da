@@ -14,13 +14,13 @@ body {
   min-height: 100vh;
   margin: 0;
   overflow: scroll;
-}
-
+} 
  
 canvas {
+  cursor: none;
   background: #ffffff; 
-  width: 1200px;
-  height: 700px;
+  width: 1000px;
+  height: 600px;
    border: 1px solid black;
 }
 
@@ -152,7 +152,7 @@ canvas {
   }
 #colorPickerButton {
   position: fixed;
-  bottom: 20px;
+  bottom: 14y0px;
   right: 160px; 
   background: #fff;
   border: 1px solid #ccc;
@@ -197,8 +197,7 @@ canvas {
   border-radius: 50%;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   cursor: pointer;
-  transition: background 0.3s ease, box-shadow 0.3s ease;
-}
+ }
 
 #brushSizeSlider::-webkit-slider-thumb:hover {
   background: #f1f1f1;
@@ -213,8 +212,7 @@ canvas {
   border-radius: 50%;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   cursor: pointer;
-  transition: background 0.3s ease, box-shadow 0.3s ease;
-}
+ }
 
 #brushSizeSlider::-moz-range-thumb:hover {
   background: #f1f1f1;
