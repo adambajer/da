@@ -278,6 +278,8 @@ function autoSaveDrawing() {
       showInfoMessage('Chyba uložení: ' + error);
     } else {
       showInfoMessage('Saved');
+      loadingOverlay.style.display = 'none';
+
     }
   });
 }
