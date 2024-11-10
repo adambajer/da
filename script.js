@@ -4,7 +4,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();// Get references to DOM elements
 const canvas = document.getElementById('drawingCanvas');
-canvas.width = 1400;
+canvas.width = 1200;
 canvas.height = 700;
 const ctx = canvas.getContext('2d');
 
@@ -649,7 +649,7 @@ for (let i = 0; i <= canvas.height; i += 5) {
   const tick = document.createElement('div');
   tick.className = 'ruler-tick';
   tick.style.height = '1px';
-  tick.style.width = i % 50 === 0 ? '15px' : i % 10 === 0 ? '5px' : '5px';
+  tick.style.width = i % 50 === 0 ? '20px' : i % 10 === 0 ? '5px' : '5px';
   tick.style.top = `${i}px`;
   tick.style.left = '0';
   verticalRuler.appendChild(tick);

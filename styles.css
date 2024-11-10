@@ -19,7 +19,7 @@ body {
  
 canvas {
   background: #ffffff; 
-  width: 1400px;
+  width: 1200px;
   height: 700px;
    border: 1px solid black;
 }
