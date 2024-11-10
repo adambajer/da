@@ -278,7 +278,7 @@ function autoSaveDrawing() {
       showInfoMessage('Chyba uložení: ' + error);
     } else {
       showInfoMessage('Saved');
-      loadingOverlay.style.display = 'none';
+                loadingOverlay.style.display = 'none';
 
     }
   });
@@ -286,7 +286,20 @@ function autoSaveDrawing() {
 // Use real-time listener
 database.ref('drawings/autoSave').on('value', (snapshot) => {
   if (!drawing) {
-    autoSaveDrawing();
+    const data = snapshot.val();
+    if (data && data.imageData) {
+      if (data.timestamp && data.timestamp > lastLoadedTimestamp) {
+        lastLoadedTimestamp = data.timestamp;
+
+        const img = new Image();
+        img.src = data.imageData;
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          showInfoMessage('Updated');
+        };
+      }
+    }
   }
 }); 
  
