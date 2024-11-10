@@ -760,3 +760,26 @@ decreaseBrushSizeButton.addEventListener('click', () => {
   ctx.lineWidth = brushSize;
   updateBrushPreview();
 });
+// Prevent zooming via keyboard
+document.addEventListener('keydown', function (e) {
+  if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// Prevent zooming via mouse wheel
+document.addEventListener('wheel', function (e) {
+  if (e.ctrlKey) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+let lastTouchEnd = 0;
+
+document.addEventListener('touchend', function (e) {
+  const now = (new Date()).getTime();
+  if (now - lastTouchEnd <= 300) {
+    e.preventDefault();
+  }
+  lastTouchEnd = now;
+}, { passive: false });
