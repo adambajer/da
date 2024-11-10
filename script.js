@@ -110,7 +110,7 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('mouseup', () => {
-  drawing = false;  
+  drawing = false;      autoSaveDrawing();
 });
 
 canvas.addEventListener('mouseout', () => {
@@ -160,6 +160,7 @@ canvas.addEventListener('touchend', (e) => {
   e.preventDefault();
   drawing = false;
    realtimeListenerActive = true;
+   autoSaveDrawing();
 });
 // Touch cancel event
 canvas.addEventListener('touchcancel', (e) => {
@@ -677,12 +678,15 @@ const colorPickerButton = document.getElementById('colorPickerButton');
 colorPickerButton.addEventListener('click', (e) => {
   e.preventDefault();
   e.stopPropagation(); // Prevent the event from bubbling up
-  // Position the color picker near the button
-  const rect = colorPickerButton.getBoundingClientRect();
-  const x = rect.left + rect.width / 2;
-  const y = rect.top + rect.height;
+
+  // Calculate the center of the screen
+  const x = window.innerWidth / 2;
+  const y = window.innerHeight / 2;
+
+  // Position the color picker in the center of the screen
   createRadialColorPicker(x, y);
 });
+
 
 const brushSizeSlider = document.getElementById('brushSizeSlider');
  
