@@ -267,25 +267,24 @@ function drawLine(x1, y1, x2, y2) {
 
 let saveTimeout;
 
- 
+function autoSaveDrawing() {
+  const dataURL = canvas.toDataURL();
+  const drawingRef = database.ref('drawings/autoSave');
+  drawingRef.set({
+    imageData: dataURL,
+    timestamp: Date.now()
+  }, (error) => {
+    if (error) {
+      showInfoMessage('Chyba uložení: ' + error);
+    } else {
+      showInfoMessage('Saved');
+    }
+  });
+}
 // Use real-time listener
 database.ref('drawings/autoSave').on('value', (snapshot) => {
   if (!drawing) {
-    const data = snapshot.val();
-    if (data && data.imageData) {
-      if (data.timestamp && data.timestamp > lastLoadedTimestamp) {
-        lastLoadedTimestamp = data.timestamp;
-
-        const img = new Image();
-        img.src = data.imageData;
-        img.onload = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          showInfoMessage('Drawing updated from server.');
-          loadingOverlay.style.display = 'none';
-        };
-      }
-    }
+    autoSaveDrawing();
   }
 }); 
  
@@ -326,20 +325,7 @@ function showInfoMessage(message) {
 }
 
 
-function autoSaveDrawing() {
-  const dataURL = canvas.toDataURL();
-  const drawingRef = database.ref('drawings/autoSave');
-  drawingRef.set({
-    imageData: dataURL,
-    timestamp: Date.now()
-  }, (error) => {
-    if (error) {
-      showInfoMessage('Chyba uložení: ' + error);
-    } else {
-      showInfoMessage('Saved');
-    }
-  });
-}
+
 let lastLoadedTimestamp = 0; // Initialize to track the last loaded drawing
 
 function loadDrawing() {
