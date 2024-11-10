@@ -134,6 +134,64 @@ function getMousePosition(event) {
 
   return [mouseX, mouseY];
 }
+/* --- Touch Event Handlers --- */
+
+// Touch start event
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault(); // Prevent scrolling when touching the canvas
+  drawing = true;
+  realtimeListenerActive = false; // Disable real-time loading during drawing
+
+  const [touchX, touchY] = getTouchPosition(e);
+  [currentX, currentY] = [touchX, touchY];
+});
+
+// Touch move event
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault(); // Prevent scrolling when touching the canvas
+  const touch = e.touches[0];
+  const touchX = touch.clientX - canvas.offsetLeft;
+  const touchY = touch.clientY - canvas.offsetTop;
+  updateBrushPreview(touch.clientX, touch.clientY);
+  updateCursorIndicators(touchX, touchY);
+
+  if (drawing) { // Only draw when touch is active
+    const [touchX, touchY] = getTouchPosition(e);
+    drawLine(currentX, currentY, touchX, touchY);
+    [currentX, currentY] = [touchX, touchY];
+  }
+});
+
+// Touch end event
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  drawing = false;
+  saveCanvasState(); // Save canvas state when the drawing is ended
+  realtimeListenerActive = true; // Re-enable real-time loading after saving
+});
+
+// Touch cancel event
+canvas.addEventListener('touchcancel', (e) => {
+  e.preventDefault();
+  drawing = false;
+  realtimeListenerActive = true;
+});
+
+// Function to get touch position relative to the canvas
+function getTouchPosition(event) {
+  const rect = canvas.getBoundingClientRect();
+  const touch = event.touches[0] || event.changedTouches[0];
+  let touchX = Math.round(touch.clientX - rect.left);
+  let touchY = Math.round(touch.clientY - rect.top);
+
+  if (snapToGridEnabled) {
+    const gridSize = getGridSize();
+    touchX = Math.round(touchX / gridSize) * gridSize;
+    touchY = Math.round(touchY / gridSize) * gridSize;
+  }
+
+  return [touchX, touchY];
+}
 
 function getGridSize() {
   switch (currentGridIndex) {
