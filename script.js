@@ -4,7 +4,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();// Get references to DOM elements
 const canvas = document.getElementById('drawingCanvas');
-canvas.width = 1000;
+canvas.width = 1000;//a
 canvas.height = 600;
 const ctx = canvas.getContext('2d');
 
