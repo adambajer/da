@@ -734,12 +734,17 @@ document.head.appendChild(style);
 /* --- End of Loading Animation --- */
 // JavaScript to handle the button
 const colorPickerButton = document.getElementById('colorPickerButton');
-   // Color Picker Button
-   colorPickerButton.addEventListener('click', (e) => {
-    e.preventDefault();
-    console.log('Color Picker Button Clicked');
-    createRadialColorPicker(e.clientX, e.clientY);
-  });
+
+colorPickerButton.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation(); // Prevent the event from bubbling up
+  // Position the color picker near the button
+  const rect = colorPickerButton.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height;
+  createRadialColorPicker(x, y);
+});
+
 // JavaScript to handle the buttons
 const increaseBrushSizeButton = document.getElementById('increaseBrushSize');
 const decreaseBrushSizeButton = document.getElementById('decreaseBrushSize');
