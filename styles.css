@@ -280,9 +280,10 @@ input[type="range"]:focus::-moz-range-thumb {
 }
 
 .menubut{position: absolute;right: 0px;top: 40px;z-index: 9999;}
-.menubut button {
+.menubut button {z-index: 9999;
   background: #fff;
   border: 1px solid #ccc; 
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
