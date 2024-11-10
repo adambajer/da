@@ -24,7 +24,8 @@ const cursorXTick = document.createElement('div');
 cursorXTick.id = 'cursorX';
 cursorXTick.className = 'crosshair';
 document.body.appendChild(cursorXTick);
-
+let mouseX = 0;
+let mouseY = 0;
 const cursorYTick = document.createElement('div');
 cursorYTick.id = 'cursorY';
 cursorYTick.className = 'crosshair';
@@ -339,20 +340,22 @@ function autoSaveDrawing() {
 function loadDrawing() {
   database.ref('drawings/autoSave').once('value', (snapshot) => {
     const data = snapshot.val();
-    if (data) {
+    if (data && data.imageData) {
       const drawingData = data.imageData;
       const img = new Image();
       img.src = drawingData;
       img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
+         ctx.drawImage(img, 0, 0);
         showInfoMessage('Aktualizováno');
+        loadingOverlay.style.display = 'none'; // Hide the loading overlay when ready
       };
     } else {
       showInfoMessage('Nic uloženého');
+      loadingOverlay.style.display = 'none'; // Hide the loading overlay if there's no data
     }
   });
 }
+
 function createRadialColorPicker(x, y) {
   // Remove existing picker if any
   const existingPicker = document.getElementById('radialColorPicker');
@@ -390,59 +393,105 @@ function createRadialColorPicker(x, y) {
   }, 10);
 
   // Create central brush preview that fills the max radius
-  const brushPreview = document.createElementNS(svgNS, 'circle');
-  brushPreview.setAttribute('cx', '150');
-  brushPreview.setAttribute('cy', '150');
-  brushPreview.setAttribute('r', '100'); // Max radius for the preview
-  brushPreview.setAttribute('fill', '#ccc'); // Default gray color for preview
-  svg.appendChild(brushPreview);
+  const brushPreviewCircle = document.createElementNS(svgNS, 'circle');
+  brushPreviewCircle.setAttribute('cx', '150');
+  brushPreviewCircle.setAttribute('cy', '150');
+  brushPreviewCircle.setAttribute('r', '100'); // Max radius for the preview
+  brushPreviewCircle.setAttribute('fill', '#ccc'); // Default gray color for preview
+  svg.appendChild(brushPreviewCircle);
 
-  const numRings = 5; // Number of concentric rings
+  const numRings = 6; // Increased from 5 to 6 to add grayscale ring
   const segmentsPerRing = 24; // Number of segments per ring
 
   for (let ringIndex = 0; ringIndex < numRings; ringIndex++) {
     const innerRadius = 30 + (ringIndex * 20);
     const outerRadius = innerRadius + 20; // The thickness of each ring
-    const ringLightness = 80 - ringIndex * 10; // Adjust lightness
 
-    for (let segmentIndex = 0; segmentIndex < segmentsPerRing; segmentIndex++) {
-      const startAngle = (segmentIndex * 360) / segmentsPerRing;
-      const endAngle = ((segmentIndex + 1) * 360) / segmentsPerRing;
-      const hue = (segmentIndex * 360) / segmentsPerRing;
+    if (ringIndex === numRings - 1) {
+      // Grayscale ring
+      const hue = 0;
+      const saturation = 0; // Grayscale
+      for (let segmentIndex = 0; segmentIndex < segmentsPerRing; segmentIndex++) {
+        const startAngle = (segmentIndex * 360) / segmentsPerRing;
+        const endAngle = ((segmentIndex + 1) * 360) / segmentsPerRing;
+        const lightness = 100 - (segmentIndex * (100 / segmentsPerRing));
 
-      // Create the path element for the pie slice segment
-      const path = document.createElementNS(svgNS, 'path');
-      const d = describeArc(150, 150, innerRadius, outerRadius, startAngle, endAngle);
-      path.setAttribute('d', d);
-      path.setAttribute('fill', `hsl(${hue}, 100%, ${ringLightness}%)`);
-      path.setAttribute('stroke', '#ffffff');
-      path.setAttribute('stroke-width', '1');
-      path.style.transition = 'filter 0.2s ease-in-out';
+        // Create the path element
+        const path = document.createElementNS(svgNS, 'path');
+        const d = describeArc(150, 150, innerRadius, outerRadius, startAngle, endAngle);
+        path.setAttribute('d', d);
+        path.setAttribute('fill', `hsl(${hue}, ${saturation}%, ${lightness}%)`);
+        path.setAttribute('stroke', '#ffffff');
+        path.setAttribute('stroke-width', '1');
+        path.style.transition = 'filter 0.2s ease-in-out';
 
-      // Event to preview color in the brush preview circle
-      path.addEventListener('mouseenter', () => {
-        brushPreview.setAttribute('fill', `hsl(${hue}, 100%, ${ringLightness}%)`);
-        // Add blurred shadow effect on hover
-        path.style.filter = `drop-shadow(0px 0px 10px hsl(${hue}, 100%, ${ringLightness}%))`;
-      });
+        // Event to preview color in the brush preview circle
+        path.addEventListener('mouseenter', () => {
+          brushPreviewCircle.setAttribute('fill', `hsl(${hue}, ${saturation}%, ${lightness}%)`);
+          // Add blurred shadow effect on hover
+          path.style.filter = `drop-shadow(0px 0px 10px hsl(${hue}, ${saturation}%, ${lightness}%))`;
+        });
 
-      // Remove shadow effect when not hovering
-      path.addEventListener('mouseleave', () => {
-        path.style.filter = 'none';
-      });
+        // Remove shadow effect when not hovering
+        path.addEventListener('mouseleave', () => {
+          path.style.filter = 'none';
+        });
 
-      // Set color on click and remove picker
-      path.addEventListener('click', () => {
-        brushColor = `hsl(${hue}, 100%, ${ringLightness}%)`;
-        ctx.strokeStyle = brushColor;
-        pickerContainer.style.opacity = '0';
-        pickerContainer.style.filter = 'blur(10px)';
-        setTimeout(() => {
-          pickerContainer.remove();
-        }, 500);
-      });
+        // Set color on click and remove picker
+        path.addEventListener('click', () => {
+          brushColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+          ctx.strokeStyle = brushColor;
+          pickerContainer.style.opacity = '0';
+          pickerContainer.style.filter = 'blur(10px)';
+          setTimeout(() => {
+            pickerContainer.remove();
+          }, 500);
+        });
 
-      svg.appendChild(path);
+        svg.appendChild(path);
+      }
+    } else {
+      const ringLightness = 80 - ringIndex * 10; // Adjust lightness
+
+      for (let segmentIndex = 0; segmentIndex < segmentsPerRing; segmentIndex++) {
+        const startAngle = (segmentIndex * 360) / segmentsPerRing;
+        const endAngle = ((segmentIndex + 1) * 360) / segmentsPerRing;
+        const hue = (segmentIndex * 360) / segmentsPerRing;
+
+        // Create the path element for the pie slice segment
+        const path = document.createElementNS(svgNS, 'path');
+        const d = describeArc(150, 150, innerRadius, outerRadius, startAngle, endAngle);
+        path.setAttribute('d', d);
+        path.setAttribute('fill', `hsl(${hue}, 100%, ${ringLightness}%)`);
+        path.setAttribute('stroke', '#ffffff');
+        path.setAttribute('stroke-width', '1');
+        path.style.transition = 'filter 0.2s ease-in-out';
+
+        // Event to preview color in the brush preview circle
+        path.addEventListener('mouseenter', () => {
+          brushPreviewCircle.setAttribute('fill', `hsl(${hue}, 100%, ${ringLightness}%)`);
+          // Add blurred shadow effect on hover
+          path.style.filter = `drop-shadow(0px 0px 10px hsl(${hue}, 100%, ${ringLightness}%))`;
+        });
+
+        // Remove shadow effect when not hovering
+        path.addEventListener('mouseleave', () => {
+          path.style.filter = 'none';
+        });
+
+        // Set color on click and remove picker
+        path.addEventListener('click', () => {
+          brushColor = `hsl(${hue}, 100%, ${ringLightness}%)`;
+          ctx.strokeStyle = brushColor;
+          pickerContainer.style.opacity = '0';
+          pickerContainer.style.filter = 'blur(10px)';
+          setTimeout(() => {
+            pickerContainer.remove();
+          }, 500);
+        });
+
+        svg.appendChild(path);
+      }
     }
   }
 
@@ -548,7 +597,7 @@ for (let i = 0; i <= canvas.height; i += 5) {
 function updateCursorIndicators(x, y) {
   // Update the position of red cursor indicators on rulers
   cursorXTick.style.left = `${canvas.offsetLeft + x}px`; // Adjust based on canvas offset
-  cursorXTick.style.top = `${canvas.offsetTop - 40}px`; // Positioned above the canvas
+  cursorXTick.style.top = `${canvas.offsetTop - 60}px`; // Positioned above the canvas
 
   cursorYTick.style.left = `${canvas.offsetLeft - 60}px`; // Positioned left of the canvas
   cursorYTick.style.top = `${canvas.offsetTop + y}px`; // Adjust based on canvas offset
@@ -587,3 +636,43 @@ function resizeCanvas(newWidth, newHeight) {
   canvas.height = newHeight;
   positionRulers();
 }
+
+/* --- Loading Animation --- */
+// Create loading overlay
+const loadingOverlay = document.createElement('div');
+loadingOverlay.id = 'loadingOverlay';
+loadingOverlay.innerHTML = '<div class="loader"></div>'; // You can style this loader as per your preference
+document.body.appendChild(loadingOverlay);
+
+// CSS styles for loading overlay and loader (You can place this in your CSS file)
+const style = document.createElement('style');
+style.innerHTML = `
+  #loadingOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255,255,255,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+
+  .loader {
+    border: 16px solid #f3f3f3; /* Light grey */
+    border-top: 16px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    animation: spin 2s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(style);
+/* --- End of Loading Animation --- */
