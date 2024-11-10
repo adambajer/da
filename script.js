@@ -46,7 +46,7 @@ let brushColor = '#000000';
 let gridDensity = 0;
 let snapToGrid = false;
 const historyStack = [];
-const maxHistorySteps = 10;
+const maxHistorySteps = 500;
 
 // Reference to the grid toggle button
 const toggleGridButton = document.getElementById('toggleGridButton');
@@ -124,7 +124,7 @@ canvas.addEventListener('mouseup', () => {
   setTimeout(() => {
     realtimeListenerActive = true; // Re-enable real-time loading after saving
     loadCanvasFromFirebase(); // Load the latest state from Firebase
-  }, 500); // Adding a slight delay to avoid conflicts between save/load
+  }, 0); // Adding a slight delay to avoid conflicts between save/load
 });
 
 
