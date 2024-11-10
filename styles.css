@@ -119,16 +119,14 @@ canvas {
     bottom: 20px;
     right: 20px;
     background: #fff;
-    border: 1px solid #ccc;
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
+    border: 1px solid #ccc; 
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    transition: box-shadow 0.3s ease-in-out;
+    transition: box-shadow 0.3s ease-in-out; 
+    padding: 4px;
   }
 
   #toggleGridButton:hover {
@@ -139,85 +137,53 @@ canvas {
     bottom: 20px;
     right: 80px; 
     background: #fff;
-    border: 1px solid #ccc;
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
+    border: 1px solid #ccc; 
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    transition: box-shadow 0.3s ease-in-out;
+    transition: box-shadow 0.3s ease-in-out; 
+    padding: 4px;
   }
 #colorPickerButton {
+ 
   position: fixed;
-  bottom: 14y0px;
-  right: 160px; 
+  bottom: 200px;
+  right: 280px;
   background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  background: #fff;
+  border: 1px solid #ccc; 
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.3s ease-in-out;
+  transition: box-shadow 0.3s ease-in-out; 
+  padding: 4px;
 }
-
-#brushSizeSlider {
-  position: fixed;
-  bottom: 20px;
-  right: 280px;
-  width: 200px; /* Adjust the width as needed */
-  height: 10px;
-  -webkit-appearance: none; /* Remove default styling in WebKit browsers */
-  background: #ccc;
+.drawcont {
+  position: relative;
+}
+ #brushSizeSlider {
+  position: absolute;
+  bottom: 200px;
+  right: 60px;
+  width: 10px;          /* Slim width to make it vertical */
+  height: 200px;        /* Height of the slider */
+  -webkit- : none;  /* Remove default styling */
+  background: #eee;          /* Background color for the track */
   border-radius: 5px;
+  cursor: pointer;
+   transition: box-shadow 0.3s ease-in-out;  writing-mode: bt-lr; /* IE */
+  -webkit-appearance: slider-vertical; /* WebKit */
+  width: 50px;
+  height: 200px;
+  padding: 0 24px;
   outline: none;
-  cursor: pointer;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.3s ease-in-out;
+  background:transparent;
 }
-
-#brushSizeSlider:hover {
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Increase shadow on hover */
-}
-
-/* Style the slider thumb */
-#brushSizeSlider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  background: #fff;
-  border: 2px solid #ccc;
-  border-radius: 50%;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
- }
-
-#brushSizeSlider::-webkit-slider-thumb:hover {
-  background: #f1f1f1;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-}
-
-#brushSizeSlider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  background: #fff;
-  border: 2px solid #ccc;
-  border-radius: 50%;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
- }
-
-#brushSizeSlider::-moz-range-thumb:hover {
-  background: #f1f1f1;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-}
+ 
 
   #toggleSnapButton:hover {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
@@ -256,17 +222,14 @@ canvas {
 .menubut{position: absolute;left: 20px;top: 20px;z-index: 9999;}
 .menubut button {
   background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  border: 1px solid #ccc; 
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.3s ease-in-out;
-  margin-bottom: 10px;
+  transition: box-shadow 0.3s ease-in-out; 
+  padding: 4px;
 }    .green-checkmark {
   color: green;
 } 

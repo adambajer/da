@@ -87,20 +87,22 @@ toggleSnapButton.addEventListener('click', () => {
   snapToGridEnabled = !snapToGridEnabled;
   toggleSnapButton.textContent = snapToGridEnabled ? 'Snap ON' : 'Snap OFF';
 });
-
+// Mouse Events
 canvas.addEventListener('mousedown', (e) => {
   drawing = true;
-  realtimeListenerActive = false; // Disable real-time loading during drawing
-
+  realtimeListenerActive = false;
   const [mouseX, mouseY] = getMousePosition(e);
   [currentX, currentY] = [mouseX, mouseY];
 });
 
-canvas.addEventListener('mousemove', (e) => { 
+canvas.addEventListener('mousemove', (e) => {
   const mouseX = e.offsetX; // Relative to canvas
   const mouseY = e.offsetY;
-  updateBrushPreview(e.clientX, e.clientY); 
-  if (drawing) { // Only draw when the mouse is down
+  updateBrushPreview(e.clientX, e.clientY);
+
+  if (drawing) {
+      updateBrushPreview();
+
     const [mouseX, mouseY] = getMousePosition(e);
     drawLine(currentX, currentY, mouseX, mouseY);
     [currentX, currentY] = [mouseX, mouseY];
@@ -108,9 +110,7 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('mouseup', () => {
-  drawing = false;
-  saveCanvasState(); // Save canvas state when the line is ended
-  realtimeListenerActive = true; // Re-enable real-time loading after saving
+  drawing = false;  
 });
 
 canvas.addEventListener('mouseout', () => {
@@ -132,12 +132,11 @@ function getMousePosition(event) {
 }
 /* --- Touch Event Handlers --- */
 
-// Touch start event
+// Touch Events
 canvas.addEventListener('touchstart', (e) => {
-  e.preventDefault(); // Prevent scrolling when touching the canvas
+  e.preventDefault();
   drawing = true;
-  realtimeListenerActive = false; // Disable real-time loading during drawing
-
+  realtimeListenerActive = false;
   const [touchX, touchY] = getTouchPosition(e);
   [currentX, currentY] = [touchX, touchY];
 });
@@ -157,14 +156,11 @@ canvas.addEventListener('touchmove', (e) => {
   }
 });
 
-// Touch end event
 canvas.addEventListener('touchend', (e) => {
   e.preventDefault();
   drawing = false;
-  saveCanvasState(); // Save canvas state when the drawing is ended
-  realtimeListenerActive = true; // Re-enable real-time loading after saving
+   realtimeListenerActive = true;
 });
-
 // Touch cancel event
 canvas.addEventListener('touchcancel', (e) => {
   e.preventDefault();
@@ -223,8 +219,7 @@ canvas.addEventListener('contextmenu', (e) => {
 clearButton.addEventListener('click', () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   showInfoMessage('Tabule smazána');
-  autoSaveDrawing();
-});
+ });
 
 downloadButton.addEventListener('click', () => {
   // Create a temporary canvas
@@ -254,19 +249,7 @@ downloadButton.addEventListener('click', () => {
   // Show a message to the user
   showInfoMessage('Obrázek stažen');
 });
-
-// Initialize periodic loading after the window has loaded
-window.addEventListener('load', () => {
-  loadDrawing(); // Initial load on page load
-
-  // Start the periodic loading timer
-  const LOAD_INTERVAL = 2000; // 5 seconds
-  setInterval(() => {
-    if (!drawing) { // Only load if the user is not drawing
-      loadDrawing();
-    }
-  }, LOAD_INTERVAL);
-});
+ 
 
 function drawLine(x1, y1, x2, y2) {
   ctx.beginPath();
@@ -279,74 +262,29 @@ function drawLine(x1, y1, x2, y2) {
 
 let saveTimeout;
 
-function saveCanvasState() {
-  clearTimeout(saveTimeout); // Clear any previous timeout
-  saveTimeout = setTimeout(() => {
-    const dataURL = canvas.toDataURL('image/png');
-    
-    // Add to Firebase
-    database.ref('drawings/autoSave').set({
-      imageData: dataURL,
-      timestamp: Date.now()
-    }, (error) => {
-      if (error) {
-        showInfoMessage('Chyba uložení: ' + error);
-      } else {
-        showInfoMessage('Uloženo');
-      }
-    });
-  }, 500); // Throttle saving to every 500ms
-}
-
-function undo() {
-  if (historyStack.length > 1) { // Ensure there's a previous state to revert to
-      historyStack.pop(); // Remove the current state
-      const previousState = historyStack[historyStack.length - 1]; // Get the previous state
-
-      // Temporarily disable real-time loading to prevent reloading after undo
-      realtimeListenerActive = false;
-
-      const img = new Image();
-      img.src = previousState;
-      img.onload = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          showInfoMessage('Step back');
-
-          // Re-enable real-time loading after a short delay to prevent immediate reload
-          setTimeout(() => {
-              realtimeListenerActive = true;
-          }, 500); // Adjust delay as needed
-      };
-  } else {
-      showInfoMessage('No more steps to undo.');
-  }
-}
-
-const undoButton = document.getElementById('undoButton');
-undoButton.addEventListener('click', undo);
-
-// Load the canvas state from Firebase/*
-/*
-function loadCanvasFromFirebase() {
-  if (!realtimeListenerActive) return;
-
-// Replace `loadCanvasFromFirebase()` call with a persistent listener
+ 
+// Use real-time listener
 database.ref('drawings/autoSave').on('value', (snapshot) => {
-  if (!drawing) { // Only update if the user is not currently drawing
+  if (!drawing) {
     const data = snapshot.val();
     if (data && data.imageData) {
-      const img = new Image();
-      img.src = data.imageData;
-      img.onload = () => {
-         ctx.drawImage(img, 0, 0);
-        showInfoMessage('Aktualizováno');
-      };
+      if (data.timestamp && data.timestamp > lastLoadedTimestamp) {
+        lastLoadedTimestamp = data.timestamp;
+
+        const img = new Image();
+        img.src = data.imageData;
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          showInfoMessage('Drawing updated from server.');
+          loadingOverlay.style.display = 'none';
+        };
+      }
     }
   }
-});
-
-}*/
+}); 
+ 
+ 
 function updateBrushPreview(mouseX, mouseY) {
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
