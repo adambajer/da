@@ -4,8 +4,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();// Get references to DOM elements
 const canvas = document.getElementById('drawingCanvas');
-canvas.width = 1600;
-canvas.height = 800;
+canvas.width = 1400;
+canvas.height = 700;
 const ctx = canvas.getContext('2d');
 
 
@@ -21,14 +21,12 @@ infoMessage.id = 'infoMessage';
 
 // Create cursor indicators
 const cursorXTick = document.createElement('div');
-cursorXTick.id = 'cursorX';
-cursorXTick.className = 'crosshair';
+cursorXTick.id = 'cursorX'; 
 document.body.appendChild(cursorXTick);
 let mouseX = 0;
 let mouseY = 0;
 const cursorYTick = document.createElement('div');
-cursorYTick.id = 'cursorY';
-cursorYTick.className = 'crosshair';
+cursorYTick.id = 'cursorY'; 
 document.body.appendChild(cursorYTick);
 // Create brush preview element
 const brushPreview = document.createElement('div');
@@ -102,8 +100,7 @@ canvas.addEventListener('mousedown', (e) => {
 canvas.addEventListener('mousemove', (e) => { 
   const mouseX = e.offsetX; // Relative to canvas
   const mouseY = e.offsetY;
-  updateBrushPreview(e.clientX, e.clientY);
-  updateCursorIndicators(mouseX, mouseY);
+  updateBrushPreview(e.clientX, e.clientY); 
   if (drawing) { // Only draw when the mouse is down
     const [mouseX, mouseY] = getMousePosition(e);
     drawLine(currentX, currentY, mouseX, mouseY);
@@ -153,8 +150,7 @@ canvas.addEventListener('touchmove', (e) => {
   const touchX = touch.clientX - canvas.offsetLeft;
   const touchY = touch.clientY - canvas.offsetTop;
   updateBrushPreview(touch.clientX, touch.clientY);
-  updateCursorIndicators(touchX, touchY);
-
+  
   if (drawing) { // Only draw when touch is active
     const [touchX, touchY] = getTouchPosition(e);
     drawLine(currentX, currentY, touchX, touchY);
@@ -639,7 +635,7 @@ for (let i = 0; i <= canvas.width; i += 5) {
   if (i % 100 === 0 && i > 0) {
     const label = document.createElement('div');
     label.className = 'ruler-number';
-    label.style.bottom = '8px';
+    label.style.bottom = '-28px';
     label.style.left = `${i - 30}px`;
 
     label.style.width = `30px`;
@@ -663,26 +659,12 @@ for (let i = 0; i <= canvas.height; i += 5) {
     const label = document.createElement('div');
     label.className = 'ruler-number';
     label.style.top = `${i - 10}px`;
-    label.style.right = '8px';
+    label.style.right = '-28px';
     label.textContent = i;
     verticalRuler.appendChild(label);
   }
 }
-function updateCursorIndicators(x, y) {
-  // Update the position of red cursor indicators on rulers
-  cursorXTick.style.left = `${canvas.offsetLeft + x}px`; // Adjust based on canvas offset
-  cursorXTick.style.top = `${canvas.offsetTop - 60}px`; // Positioned above the canvas
-
-  cursorYTick.style.left = `${canvas.offsetLeft - 60}px`; // Positioned left of the canvas
-  cursorYTick.style.top = `${canvas.offsetTop + y}px`; // Adjust based on canvas offset
-
-  // Update the numerical position below the tick, rounded values
-  cursorXTick.textContent = `${x}`;
-  cursorXTick.style.transform = `translateX(-50%)`; // Center below the tick
-
-  cursorYTick.textContent = `${y}`;
-  cursorYTick.style.transform = `translateY(-50%)`; // Center beside the tick
-}  
+ 
 // Position and resize rulers based on canvas dimensions
 function positionRulers() {
   // Position the horizontal ruler at the top of the canvas
@@ -752,11 +734,12 @@ document.head.appendChild(style);
 /* --- End of Loading Animation --- */
 // JavaScript to handle the button
 const colorPickerButton = document.getElementById('colorPickerButton');
-
-colorPickerButton.addEventListener('click', (e) => {
-  e.preventDefault();
-  createRadialColorPicker(e.clientX, e.clientY);
-});
+   // Color Picker Button
+   colorPickerButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    console.log('Color Picker Button Clicked');
+    createRadialColorPicker(e.clientX, e.clientY);
+  });
 // JavaScript to handle the buttons
 const increaseBrushSizeButton = document.getElementById('increaseBrushSize');
 const decreaseBrushSizeButton = document.getElementById('decreaseBrushSize');
