@@ -723,6 +723,7 @@ document.addEventListener('touchend', function (e) {
   }
   lastTouchEnd = now;
 }, { passive: false });
+
 const eraserButton = document.getElementById('eraserButton');
 let isErasing = false;
 
