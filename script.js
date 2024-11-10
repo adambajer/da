@@ -219,6 +219,7 @@ canvas.addEventListener('contextmenu', (e) => {
 // Clear canvas
 clearButton.addEventListener('click', () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+   autoSaveDrawing();
   showInfoMessage('Tabule smazána');
  });
 
