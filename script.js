@@ -1,14 +1,10 @@
 
-/* Whiteboard – v11 (Snap fixed + new modifiers)
-   - Fixed board 1800×800; element zoom (Ctrl/Alt/⌘ + wheel), centered.
-   - ✅ Snap-to-grid works again (canvas-space, grid size = state.gridSize).
-   - ✅ Modifiers:
-        • Ctrl  : Straight line (any angle).
-        • Ctrl+Shift : Straight line with 15° angle snapping.
-        • Shift : Axis-locked (perfect horizontal or vertical).
-        • Alt   : Circle tool (center at mousedown, live radius).
-   - Alt shows live radius label; line tools show length+angle.
-   - Wheel over canvas = brush size; modifiers + wheel keep element zoom.
+/* Whiteboard – v12 (Pan + Zoom Slider + snap-synced cursor fix)
+   - Fixed board 1800×800; element zoom (Ctrl/Alt/⌘ + wheel or +/-), centered.
+   - NEW: Panning (Space+Drag or Middle mouse).
+   - NEW: Zoom level slider (0.5x–3x) with % label.
+   - FIX: Cursor/brush offset when zoomed — brush preview follows the same
+          snapped world coordinates used for drawing (no drift at any zoom).
 */
 
 // ===== Firebase bootstrap =====
@@ -22,6 +18,8 @@ const database = firebase.database();
 const canvas = document.getElementById('drawingCanvas');
 if (!canvas) throw new Error("Missing #drawingCanvas");
 const ctx = canvas.getContext('2d', { alpha: true });
+
+// Optional buttons
 const clearButton       = document.getElementById('clearButton');
 const downloadButton    = document.getElementById('downloadButton');
 const toggleGridButton  = document.getElementById('toggleGridButton');
@@ -44,6 +42,10 @@ const eraserButton      = document.getElementById('eraserButton');
     #loadingOverlay{position:fixed;inset:0;background:rgba(255,255,255,.8);display:none;align-items:center;justify-content:center;z-index:9999}
     .loader{border:16px solid #f3f3f3;border-top:16px solid #3498db;border-radius:50%;width:96px;height:96px;animation:spin 1.2s linear infinite}
     @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    /* Zoom slider */
+    #zoomHud{position:fixed;right:16px;bottom:16px;background:#fff;border:1px solid #ddd;border-radius:10px;padding:8px 10px;box-shadow:0 2px 10px rgba(0,0,0,.06);z-index:2100;display:flex;align-items:center;gap:8px}
+    #zoomHud input[type=range]{width:160px}
+    #zoomPct{min-width:50px;text-align:right;font:12px system-ui}
   `;
   const s = document.createElement('style'); s.innerHTML = css; document.head.appendChild(s);
 })();
@@ -52,38 +54,53 @@ const eraserButton      = document.getElementById('eraserButton');
 let boardWrap = document.getElementById('boardWrap');
 if (!boardWrap) { boardWrap = document.createElement('div'); boardWrap.id='boardWrap'; canvas.parentNode.insertBefore(boardWrap, canvas); boardWrap.appendChild(canvas); }
 
-// Overlays
+// Overlays & HUD
 const infoMessage   = document.createElement('div'); infoMessage.id='infoMessage'; document.body.appendChild(infoMessage);
 const brushPreview  = document.createElement('div'); brushPreview.id='brushPreview'; document.body.appendChild(brushPreview);
 const measureLabel  = document.createElement('div'); measureLabel.id='measureLabel'; document.body.appendChild(measureLabel);
 const loadingOverlay= document.createElement('div'); loadingOverlay.id='loadingOverlay'; loadingOverlay.innerHTML='<div class="loader"></div>'; document.body.appendChild(loadingOverlay);
 
+const zoomHud = document.createElement('div');
+zoomHud.id = 'zoomHud';
+zoomHud.innerHTML = `
+  <button id="zoomOutBtn">–</button>
+  <input id="zoomRange" type="range" min="0.5" max="3" step="0.01" value="1" />
+  <button id="zoomInBtn">+</button>
+  <div id="zoomPct">100%</div>
+`;
+document.body.appendChild(zoomHud);
+const zoomRange = zoomHud.querySelector('#zoomRange');
+const zoomPct   = zoomHud.querySelector('#zoomPct');
+
 // ===== State =====
 const CANVAS_W = 1800, CANVAS_H = 800;
 const state = {
   dpr: window.devicePixelRatio || 1,
-  brush: { size: 10, color: '#ff2aa1' },
+  brush: { size: 10, color: '#5b35ff' },
   drawing: false,
   erasing: false,
   gridEnabled: false,
   gridSize: 50,
   snap: false,
-  // modifiers
-  mod: { shift:false, ctrl:false, alt:false },
-  // zoom element
+
+  // element zoom + panning
   zoom: 1, zoomMin: 0.5, zoomMax: 3, zoomStep: 1.1,
-  // firebase
+  isPanning: false, spaceDown: false, panStart: {mx:0,my:0,left:0,top:0},
+
   lastLoadedTimestamp: 0, ignoreNextUpdateTs: null,
   lastDownPos: null, movedSinceDown: false,
+
+  // modifiers for line/circle tools from v11 (kept)
+  mod: { shift:false, ctrl:false, alt:false },
 };
 
-let strokes = [];  // stroke objects
+let strokes = [];  // {mode,color,size,points,type:'stroke'|'dot'|'line'|'circle', line?, circle?}
 let redoStack = [];
 let currentStroke = null;
 let saveTimer = null;
 let backgroundImage = null;
 
-// ===== Setup & Center =====
+// ===== Setup, center, zoom =====
 function setupCanvasDPR() {
   state.dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(CANVAS_W * state.dpr);
@@ -92,6 +109,7 @@ function setupCanvasDPR() {
   ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
   drawScene();
 }
+
 function centerBoard() {
   const vw=window.innerWidth, vh=window.innerHeight;
   const scaledW = CANVAS_W * state.zoom, scaledH = CANVAS_H * state.zoom;
@@ -99,7 +117,10 @@ function centerBoard() {
   boardWrap.style.transform = `scale(${state.zoom})`;
   boardWrap.style.left = `${left}px`; boardWrap.style.top = `${top}px`;
   boardWrap.style.width = `${CANVAS_W}px`; boardWrap.style.height = `${CANVAS_H}px`;
+  zoomRange.value = String(state.zoom.toFixed(2));
+  zoomPct.textContent = Math.round(state.zoom*100) + '%';
 }
+
 function setZoom(z, anchorClient=null) {
   const newZoom = Math.max(state.zoomMin, Math.min(state.zoomMax, z));
   if (newZoom === state.zoom) return;
@@ -114,132 +135,101 @@ function setZoom(z, anchorClient=null) {
 
 // ===== Rendering =====
 function drawScene() {
-  // white background
   ctx.save(); ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
   ctx.clearRect(0,0,CANVAS_W,CANVAS_H); ctx.fillStyle='#fff'; ctx.fillRect(0,0,CANVAS_W,CANVAS_H); ctx.restore();
   if (backgroundImage && backgroundImage.complete) ctx.drawImage(backgroundImage,0,0,CANVAS_W,CANVAS_H);
   if (state.gridEnabled) drawGrid(ctx);
-  for (const s of strokes) drawStroke(ctx,s);
-  if (currentStroke) drawStroke(ctx,currentStroke);
+  for (const s of strokes) drawStroke(ctx, s);
+  if (currentStroke) drawStroke(ctx, currentStroke);
 }
 
 function drawGrid(gctx) {
-  const gs = state.gridSize;
-  gctx.save(); gctx.lineWidth=1; gctx.strokeStyle='rgba(0,0,0,0.08)'; gctx.beginPath();
+  const gs=state.gridSize; gctx.save(); gctx.lineWidth=1; gctx.strokeStyle='rgba(0,0,0,0.08)'; gctx.beginPath();
   for (let x=0;x<=CANVAS_W;x+=gs){ gctx.moveTo(x,0); gctx.lineTo(x,CANVAS_H); }
   for (let y=0;y<=CANVAS_H;y+=gs){ gctx.moveTo(0,y); gctx.lineTo(CANVAS_W,y); }
   gctx.stroke(); gctx.restore();
 }
 
-function drawStroke(targetCtx, s) {
-  targetCtx.save();
-  targetCtx.globalCompositeOperation = s.mode === 'erase' ? 'destination-out' : 'source-over';
-  targetCtx.strokeStyle = s.mode === 'erase' ? 'rgba(0,0,0,1)' : s.color;
-  targetCtx.fillStyle = targetCtx.strokeStyle;
-  targetCtx.lineCap='round'; targetCtx.lineJoin='round'; targetCtx.lineWidth = s.size;
+function drawStroke(g,s) {
+  g.save();
+  g.globalCompositeOperation = s.mode==='erase' ? 'destination-out' : 'source-over';
+  g.strokeStyle = s.mode==='erase' ? 'rgba(0,0,0,1)' : s.color;
+  g.fillStyle = g.strokeStyle;
+  g.lineCap='round'; g.lineJoin='round'; g.lineWidth = s.size;
 
-  if (s.type === 'dot') {
-    const p=s.points[0]; targetCtx.beginPath(); targetCtx.arc(p.x,p.y,Math.max(0.5,s.size/2),0,Math.PI*2); targetCtx.fill();
-  } else if (s.type === 'circle') {
-    const {cx, cy, r} = s.circle;
-    targetCtx.beginPath();
-    targetCtx.arc(cx, cy, Math.max(0,r), 0, Math.PI*2);
-    if (s.mode === 'erase') targetCtx.stroke(); else targetCtx.stroke();
+  if (s.type==='dot') {
+    const p=s.points[0]; g.beginPath(); g.arc(p.x,p.y,Math.max(0.5,s.size/2),0,Math.PI*2); g.fill();
+  } else if (s.type==='circle') {
+    const {cx,cy,r}=s.circle; g.beginPath(); g.arc(cx,cy,Math.max(0,r),0,Math.PI*2); g.stroke();
   } else {
-    const pts=s.points; if (!pts || pts.length<2){ targetCtx.restore(); return; }
-    targetCtx.beginPath();
-    targetCtx.moveTo(pts[0].x, pts[0].y);
-    for (let i=1;i<pts.length;i++) targetCtx.lineTo(pts[i].x, pts[i].y);
-    targetCtx.stroke();
+    const pts=s.points; if (!pts||pts.length<2){ g.restore(); return; }
+    g.beginPath(); g.moveTo(pts[0].x,pts[0].y); for (let i=1;i<pts.length;i++) g.lineTo(pts[i].x,pts[i].y); g.stroke();
   }
-  targetCtx.restore();
+  g.restore();
 }
 
-// ===== Coords & Snap =====
+// ===== Coords + Snap =====
 function clientToCanvas(eClientX, eClientY) {
   const rect = canvas.getBoundingClientRect(); const scale = rect.width / CANVAS_W;
-  return { x: (eClientX - rect.left)/scale, y:(eClientY - rect.top)/scale, scale };
+  return { x: (eClientX - rect.left)/scale, y:(eClientY - rect.top)/scale, scale, rect };
 }
 function applySnap(p) {
   if (!state.snap) return p;
   const g=state.gridSize;
   return { x: Math.round(p.x/g)*g, y: Math.round(p.y/g)*g };
 }
+function worldToClient(wx, wy) {
+  const rect = canvas.getBoundingClientRect();
+  const scale = rect.width / CANVAS_W;
+  return { cx: rect.left + wx*scale, cy: rect.top + wy*scale, scale, rect };
+}
 
-// ===== Drawing logic with modifiers =====
+// ===== Drawing logic (keeps v11 modifiers) =====
 function beginStroke(cx, cy, mod) {
   state.drawing = true; state.movedSinceDown=false; state.lastDownPos = {x:cx,y:cy};
-
-  // Determine tool based on modifiers
   let type='stroke', lineMode=false, axisMode=false, circleMode=false, angleSnap=false;
-  if (mod.alt) { circleMode = true; type='circle'; }
-  else if (mod.shift) { axisMode=true; type='line'; }
-  else if (mod.ctrl) { lineMode=true; type='line'; angleSnap = mod.shift; } // Ctrl+Shift -> angle snapping
+  if (mod.alt) circleMode = true, type='circle';
+  else if (mod.shift) axisMode = true, type='line';
+  else if (mod.ctrl) lineMode = true, type='line', angleSnap = mod.shift;
 
-  const base = {
-    mode: state.erasing ? 'erase' : 'draw',
-    color: state.brush.color,
-    size: state.brush.size,
-    points: [{x:cx,y:cy}],
-    type
-  };
+  const base = { mode: state.erasing ? 'erase' : 'draw', color: state.brush.color, size: state.brush.size, points:[{x:cx,y:cy}], type };
   if (circleMode) base.circle = { cx: cx, cy: cy, r: 0 };
   if (lineMode || axisMode) base.line = { start:{x:cx,y:cy}, angleSnap };
   base.axisMode = axisMode;
   currentStroke = base;
-
   redoStack = [];
   showMeasureForCurrent({x:cx,y:cy});
 }
-
 function extendStroke(cx, cy) {
   if (!state.drawing || !currentStroke) return;
   state.movedSinceDown = true;
-
-  if (currentStroke.type === 'circle') {
-    const dx = cx - currentStroke.circle.cx;
-    const dy = cy - currentStroke.circle.cy;
-    currentStroke.circle.r = Math.sqrt(dx*dx + dy*dy);
-  } else if (currentStroke.type === 'line') {
-    const start = currentStroke.line.start;
-    let x=cx, y=cy;
-
+  if (currentStroke.type==='circle') {
+    const dx=cx-currentStroke.circle.cx, dy=cy-currentStroke.circle.cy;
+    currentStroke.circle.r = Math.sqrt(dx*dx+dy*dy);
+  } else if (currentStroke.type==='line') {
+    const start=currentStroke.line.start; let x=cx, y=cy;
     if (currentStroke.axisMode) {
       const dx=Math.abs(cx-start.x), dy=Math.abs(cy-start.y);
-      if (dx >= dy) { y = start.y; } else { x = start.x; }
+      if (dx>=dy) { y=start.y; } else { x=start.x; }
     } else if (currentStroke.line.angleSnap) {
-      // 15° angle snapping
-      const ang = Math.atan2(cy-start.y, cx-start.x);
-      const step = (15 * Math.PI)/180;
-      const snapped = Math.round(ang/step)*step;
-      const len = Math.hypot(cx-start.x, cy-start.y);
-      x = start.x + Math.cos(snapped)*len;
-      y = start.y + Math.sin(snapped)*len;
+      const ang=Math.atan2(cy-start.y,cx-start.x), step=(15*Math.PI)/180;
+      const snapped=Math.round(ang/step)*step, len=Math.hypot(cx-start.x, cy-start.y);
+      x=start.x+Math.cos(snapped)*len; y=start.y+Math.sin(snapped)*len;
     }
-    currentStroke.points = [ start, {x, y} ];
+    currentStroke.points=[start,{x,y}];
   } else {
     currentStroke.points.push({x:cx,y:cy});
   }
-
-  drawScene();
-  showMeasureForCurrent({x:cx,y:cy});
+  drawScene(); showMeasureForCurrent({x:cx,y:cy});
 }
-
 function endStroke() {
-  if (!state.drawing) return;
-  state.drawing=false;
+  if (!state.drawing) return; state.drawing=false;
   if (currentStroke) {
     if (!state.movedSinceDown) {
-      if (currentStroke.type === 'circle') {
-        currentStroke.circle.r = Math.max(0.5, state.brush.size/2);
-      } else {
-        currentStroke.type='dot'; currentStroke.points=[ state.lastDownPos ];
-      }
+      if (currentStroke.type==='circle') currentStroke.circle.r = Math.max(0.5, state.brush.size/2);
+      else { currentStroke.type='dot'; currentStroke.points=[ state.lastDownPos ]; }
     }
-    // Normalize for snap at end as well
-    strokes.push(currentStroke);
-    currentStroke=null;
-    drawScene(); scheduleAutoSave();
+    strokes.push(currentStroke); currentStroke=null; drawScene(); scheduleAutoSave();
   }
   hideMeasure();
 }
@@ -248,73 +238,73 @@ function endStroke() {
 function showMeasureForCurrent(cursor) {
   const rect=canvas.getBoundingClientRect(); const scale=rect.width/CANVAS_W;
   let text='', pos=null;
-  if (currentStroke?.type === 'line') {
+  if (currentStroke?.type==='line') {
     const a=currentStroke.points[0], b=currentStroke.points[1] || cursor;
-    const dx=b.x-a.x, dy=b.y-a.y;
-    const length = Math.sqrt(dx*dx + dy*dy);
-    const angle = (Math.atan2(dy,dx)*180/Math.PI+360)%360;
-    text = `${Math.round(length)} px · ${Math.round(angle)}°`;
-    pos = { x: (a.x + b.x)/2, y: (a.y + b.y)/2 };
-  } else if (currentStroke?.type === 'circle') {
-    const r = currentStroke.circle.r;
-    text = `r = ${Math.round(r)} px`;
-    pos = { x: currentStroke.circle.cx, y: currentStroke.circle.cy - r - 12 };
-  } else {
-    measureLabel.style.display='none'; return;
-  }
-  measureLabel.textContent = text;
-  measureLabel.style.left = (rect.left + pos.x*scale) + 'px';
-  measureLabel.style.top  = (rect.top  + pos.y*scale) + 'px';
-  measureLabel.style.display='block';
+    const dx=b.x-a.x, dy=b.y-a.y; const length=Math.sqrt(dx*dx+dy*dy);
+    const angle=(Math.atan2(dy,dx)*180/Math.PI+360)%360;
+    text=`${Math.round(length)} px · ${Math.round(angle)}°`; pos={x:(a.x+b.x)/2, y:(a.y+b.y)/2};
+  } else if (currentStroke?.type==='circle') {
+    const r=currentStroke.circle.r; text=`r = ${Math.round(r)} px`; pos={x:currentStroke.circle.cx, y:currentStroke.circle.cy - r - 12};
+  } else { measureLabel.style.display='none'; return; }
+  measureLabel.textContent=text; measureLabel.style.left=(rect.left+pos.x*scale)+'px'; measureLabel.style.top=(rect.top+pos.y*scale)+'px'; measureLabel.style.display='block';
 }
 function hideMeasure(){ measureLabel.style.display='none'; }
 
-// ===== Brush preview =====
-function updateBrushPreview(eClientX,eClientY){
-  const {scale}=clientToCanvas(eClientX,eClientY);
-  const px=Math.max(2, state.brush.size*scale);
+// ===== Brush preview (SNAP-SYNCED) =====
+function updateBrushPreviewSnapped(clientX, clientY) {
+  const raw = clientToCanvas(clientX, clientY);
+  const world = applySnap({x:raw.x, y:raw.y});
+  const loc = worldToClient(world.x, world.y); // snapped -> client, same as drawing
+  const px = Math.max(2, state.brush.size * loc.scale);
   Object.assign(brushPreview.style, {
-    width:px+'px', height:px+'px', backgroundColor: state.erasing ? 'transparent' : state.brush.color,
-    left:(eClientX - px/2)+'px', top:(eClientY - px/2)+'px',
+    width: px+'px', height:px+'px',
+    backgroundColor: state.erasing ? 'transparent' : state.brush.color,
+    left: (loc.cx - px/2)+'px', top: (loc.cy - px/2)+'px',
     outline: state.erasing ? '2px dashed #c00' : 'none'
   });
 }
 
-// ===== Event helpers =====
-function pointerDown(e, mods) {
-  const p0 = applySnap(clientToCanvas(e.clientX, e.clientY));
-  beginStroke(p0.x, p0.y, mods);
-  updateBrushPreview(e.clientX, e.clientY);
-}
-function pointerMove(e) {
-  const p = applySnap(clientToCanvas(e.clientX, e.clientY));
-  if (state.drawing) extendStroke(p.x, p.y);
-  updateBrushPreview(e.clientX, e.clientY);
-}
+// ===== Panning =====
+function startPan(e){ state.isPanning=true; const bw=boardWrap.getBoundingClientRect(); state.panStart={mx:e.clientX,my:e.clientY,left:bw.left,top:bw.top}; }
+function doPan(e){ if (!state.isPanning) return; const dx=e.clientX-state.panStart.mx, dy=e.clientY-state.panStart.my; boardWrap.style.left=(state.panStart.left+dx)+'px'; boardWrap.style.top=(state.panStart.top+dy)+'px'; }
+function endPan(){ state.isPanning=false; }
 
 // ===== Events =====
 canvas.addEventListener('mousedown', (e)=>{
+  if (e.button===1 || state.spaceDown) { startPan(e); return; }
   const mods={shift:e.shiftKey, ctrl:e.ctrlKey||e.metaKey, alt:e.altKey};
-  pointerDown(e, mods);
+  const raw = clientToCanvas(e.clientX, e.clientY);
+  const p0  = applySnap({x:raw.x, y:raw.y});
+  beginStroke(p0.x, p0.y, mods);
+  updateBrushPreviewSnapped(e.clientX, e.clientY);
 });
-canvas.addEventListener('mousemove', pointerMove);
+canvas.addEventListener('mousemove', (e)=>{
+  if (state.isPanning) { doPan(e); return; }
+  const raw = clientToCanvas(e.clientX, e.clientY);
+  const p = applySnap({x:raw.x, y:raw.y});
+  if (state.drawing) extendStroke(p.x, p.y);
+  updateBrushPreviewSnapped(e.clientX, e.clientY);
+});
+canvas.addEventListener('mouseup', (e)=>{ if (state.isPanning) endPan(); else endStroke(); });
 document.addEventListener('mouseup', endStroke);
-canvas.addEventListener('mouseleave', ()=>{ if (state.drawing) endStroke(); });
+canvas.addEventListener('mouseleave', ()=>{ if (state.isPanning) endPan(); if (state.drawing) endStroke(); });
 
+// Touch panning (two-finger pan)
 canvas.addEventListener('touchstart',(e)=>{
-  e.preventDefault(); const t=e.touches[0];
-  const fake = { clientX:t.clientX, clientY:t.clientY };
-  const mods={shift:false, ctrl:false, alt:false};
-  pointerDown(fake, mods);
+  if (e.touches.length>=2){ const t=e.touches[0]; startPan({clientX:t.clientX, clientY:t.clientY}); return; }
+  e.preventDefault(); const t=e.touches[0]; const raw=clientToCanvas(t.clientX,t.clientY); const p=applySnap({x:raw.x,y:raw.y});
+  const mods={shift:false,ctrl:false,alt:false}; beginStroke(p.x,p.y,mods); updateBrushPreviewSnapped(t.clientX,t.clientY);
 },{passive:false});
 canvas.addEventListener('touchmove',(e)=>{
-  e.preventDefault(); const t=e.touches[0]; pointerMove({clientX:t.clientX, clientY:t.clientY});
+  if (state.isPanning){ const t=e.touches[0]; doPan({clientX:t.clientX, clientY:t.clientY}); return; }
+  e.preventDefault(); const t=e.touches[0]; const raw=clientToCanvas(t.clientX,t.clientY); const p=applySnap({x:raw.x,y:raw.y});
+  extendStroke(p.x,p.y); updateBrushPreviewSnapped(t.clientX,t.clientY);
 },{passive:false});
-canvas.addEventListener('touchend',(e)=>{ e.preventDefault(); endStroke(); },{passive:false});
+canvas.addEventListener('touchend',(e)=>{ e.preventDefault(); if (state.isPanning) endPan(); else endStroke(); },{passive:false});
 
 canvas.addEventListener('contextmenu', (e)=>{ e.preventDefault(); createRadialColorPicker(e.clientX, e.clientY); });
 
-// Brush size on wheel; modifiers = element zoom
+// Wheel: element zoom with modifiers; brush resize without modifiers
 window.addEventListener('wheel', (e) => {
   const overCanvas = document.elementFromPoint(e.clientX, e.clientY) === canvas;
   if (e.ctrlKey || e.metaKey || e.altKey) {
@@ -326,13 +316,14 @@ window.addEventListener('wheel', (e) => {
     const step = e.deltaY > 0 ? -1 : 1;
     state.brush.size = Math.max(1, Math.min(200, state.brush.size + step));
     if (brushSizeSlider) brushSizeSlider.value = state.brush.size;
-    updateBrushPreview(e.clientX, e.clientY);
+    updateBrushPreviewSnapped(e.clientX, e.clientY);
     showInfo(`Brush ${state.brush.size}px`);
   }
 }, { passive:false });
 
-// Keyboard modifiers & shortcuts
+// Keyboard mods & panning
 document.addEventListener('keydown', (e)=>{
+  if (e.code==='Space'){ state.spaceDown=true; }
   if (e.key==='Shift') state.mod.shift=true;
   if (e.key==='Control') state.mod.ctrl=true;
   if (e.key==='Alt') state.mod.alt=true;
@@ -354,10 +345,16 @@ document.addEventListener('keydown', (e)=>{
   }
 });
 document.addEventListener('keyup', (e)=>{
+  if (e.code==='Space'){ state.spaceDown=false; }
   if (e.key==='Shift') state.mod.shift=false;
   if (e.key==='Control') state.mod.ctrl=false;
   if (e.key==='Alt') state.mod.alt=false;
 });
+
+// Zoom slider HUD
+zoomRange.addEventListener('input', ()=>{ setZoom(parseFloat(zoomRange.value), {x:window.innerWidth/2,y:window.innerHeight/2}); });
+zoomHud.querySelector('#zoomInBtn').addEventListener('click', ()=> setZoom(state.zoom*state.zoomStep, {x:window.innerWidth/2,y:window.innerHeight/2}) );
+zoomHud.querySelector('#zoomOutBtn').addEventListener('click',()=> setZoom(state.zoom/state.zoomStep, {x:window.innerWidth/2,y:window.innerHeight/2}) );
 
 // Buttons
 if (brushSizeSlider) brushSizeSlider.addEventListener('input', ()=>{ state.brush.size=parseInt(brushSizeSlider.value,10)||1; });
@@ -374,9 +371,8 @@ function undo(){ if (!strokes.length) return; redoStack.push(strokes.pop()); dra
 function redo(){ if (!redoStack.length) return; strokes.push(redoStack.pop()); drawScene(); scheduleAutoSave(); }
 
 // Save/Load
-function renderFull() {
-  const temp=document.createElement('canvas'); temp.width=CANVAS_W; temp.height=CANVAS_H;
-  const tctx=temp.getContext('2d'); tctx.fillStyle='#fff'; tctx.fillRect(0,0,temp.width,temp.height);
+function renderFull(){ const temp=document.createElement('canvas'); temp.width=CANVAS_W; temp.height=CANVAS_H; const tctx=temp.getContext('2d');
+  tctx.fillStyle='#fff'; tctx.fillRect(0,0,temp.width,temp.height);
   if (backgroundImage && backgroundImage.complete) tctx.drawImage(backgroundImage,0,0,CANVAS_W,CANVAS_H);
   if (state.gridEnabled) drawGrid(tctx);
   for (const s of strokes) drawStroke(tctx, s);
@@ -384,10 +380,8 @@ function renderFull() {
 }
 function doDownload(){ const temp=renderFull(); const a=document.createElement('a'); a.href=temp.toDataURL('image/png'); a.download='drawing.png'; a.click(); showInfo('Downloaded'); }
 function scheduleAutoSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(autoSaveDrawing, 500); }
-function autoSaveDrawing(){
-  clearTimeout(saveTimer); saveTimer=null;
-  try{ const temp=renderFull(); const dataURL=temp.toDataURL('image/png'); const ts=Date.now();
-    state.ignoreNextUpdateTs=ts;
+function autoSaveDrawing(){ clearTimeout(saveTimer); saveTimer=null;
+  try{ const temp=renderFull(); const dataURL=temp.toDataURL('image/png'); const ts=Date.now(); state.ignoreNextUpdateTs=ts;
     database.ref('drawings/autoSave').set({imageData:dataURL,timestamp:ts}, (err)=>{ if (err) showInfo('Save error'); else showInfo('Saved'); });
   }catch(err){ console.error(err); showInfo('Save error'); }
 }
@@ -395,18 +389,15 @@ function loadDrawing(){
   loadingOverlay.style.display='flex';
   database.ref('drawings/autoSave').once('value',(snap)=>{
     const data=snap.val();
-    if (data && data.imageData){
-      state.lastLoadedTimestamp=data.timestamp||0;
-      const img=new Image(); img.onload=()=>{ backgroundImage=img; drawScene(); loadingOverlay.style.display='none'; showInfo('Loaded'); }; img.src=data.imageData;
-    } else { loadingOverlay.style.display='none'; showInfo('No saved drawing'); }
+    if (data && data.imageData){ state.lastLoadedTimestamp=data.timestamp||0; const img=new Image(); img.onload=()=>{ backgroundImage=img; drawScene(); loadingOverlay.style.display='none'; showInfo('Loaded'); }; img.src=data.imageData; }
+    else { loadingOverlay.style.display='none'; showInfo('No saved drawing'); }
   });
 }
 database.ref('drawings/autoSave').on('value',(snap)=>{
   const data=snap.val(); if (!data||!data.imageData||!data.timestamp) return;
   if (state.ignoreNextUpdateTs && data.timestamp===state.ignoreNextUpdateTs){ state.lastLoadedTimestamp=data.timestamp; state.ignoreNextUpdateTs=null; return; }
   if (data.timestamp<=state.lastLoadedTimestamp) return;
-  state.lastLoadedTimestamp=data.timestamp;
-  const img=new Image(); img.onload=()=>{ backgroundImage=img; drawScene(); showInfo('Updated'); }; img.src=data.imageData;
+  state.lastLoadedTimestamp=data.timestamp; const img=new Image(); img.onload=()=>{ backgroundImage=img; drawScene(); showInfo('Updated'); }; img.src=data.imageData;
 });
 
 // Color Picker

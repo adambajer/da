@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mini SVG Bézier App</title>
+<style>
+  :root{
+    --ink:#1f2328; --muted:#6a6f76; --bg:#fafafa; --accent:#0d6efd;
+    --handle:#9c27b0; --anchor:#e53935; --path:#111; --grid:#e6e6e6;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .ui{display:flex;gap:.5rem;align-items:center;padding:.5rem;border-bottom:1px solid #ddd;background:#fff;position:sticky;top:0;z-index:10}
+  .ui button{border:1px solid #ccc;background:#fff;border-radius:.5rem;padding:.4rem .6rem;cursor:pointer}
+  .ui button[data-active="true"]{border-color:var(--accent);color:#fff;background:var(--accent)}
+  .ui .sp{flex:1}
+  .ui .kbd{background:#f3f3f3;border:1px solid #ddd;border-radius:.35rem;padding:.05rem .3rem;font-family:ui-monospace,Consolas;}
+  #stage-wrap{position:relative; height:calc(100% - 48px); }
+  #stage{width:100%;height:100%;display:block ;}
+  /* grid */
+  .grid rect{fill:none;stroke:var(--grid);stroke-width:1}
+  /* paths */
+  .path{fill:none;stroke:var(--path);stroke-width:2}
+  .path.selected{stroke:var(--accent)}
+  /* helpers */
+  .helper{pointer-events:none}
+  .handle-line{stroke:var(--handle);stroke-dasharray:4 3;stroke-width:1}
+  .handle-dot{fill:#fff;stroke:var(--handle);stroke-width:2;cursor:grab}
+  .anchor-dot{fill:#fff;stroke:var(--anchor);stroke-width:2;cursor:grab}
+  .anchor-dot.selected{fill:var(--anchor);stroke:#fff}
+  .hit{fill:transparent;stroke:none;pointer-events:all}
+  /* footer help */
+  .help{position:absolute;left:.75rem;bottom:.75rem;background:#ffffffcc;border:1px solid #ddd;border-radius:.5rem;padding:.35rem .5rem}
+</style>
+</head>
+<body>
+  <div class="ui">
+    <button id="toolSelect" title="Select (V)" data-active="true">Select <span class="kbd">V</span></button>
+    <button id="toolPen" title="Pen (P)">Pen <span class="kbd">P</span></button>
+    <span class="sp"></span>
+    <button id="btnFinish" title="Finish current path (Enter)">Finish <span class="kbd">Enter</span></button>
+    <button id="btnDelete" title="Delete selected anchor (Del)">Delete <span class="kbd">Del</span></button>
+    <button id="btnExport" title="Copy SVG to clipboard">Export SVG</button>
+    <button id="btnClear" title="Remove everything">Clear</button>
+  </div>
+
+  <div id="stage-wrap">
+    <svg id="stage">
+      <!-- background grid -->
+      <defs>
+        <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+          <path d="M32 0 H0 V32" stroke="#eee" stroke-width="1"/>
+          <path d="M32 0 H0 V32" stroke="#f8f8f8" stroke-width="1" transform="scale(0.25)"/>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#grid)"/>
+      <!-- paths live inside this group -->
+      <g id="paths"></g>
+      <!-- helpers (handles & anchors) rendered above -->
+      <g id="helpers" class="helper"></g>
+    </svg>
+    <div class="help">
+      <strong>Pen:</strong> Click to add points, click-drag to pull handles. <strong>Finish:</strong> Enter. <strong>Select:</strong> Drag anchors/handles. <strong>Delete:</strong> Del.
+    </div>
+  </div>
+
+<script>
+/* ====================== Utilities ====================== */
+const $ = sel => document.querySelector(sel);
+const svg = $('#stage');
+const gPaths = $('#paths');
+const gHelpers = $('#helpers');
+
+const Tools = { SELECT:'select', PEN:'pen' };
+let state = {
+  tool: Tools.SELECT,
+  doc: { paths: [] }, // [{id, closed, points:[{x,y, c1:{x,y}, c2:{x,y}}]}]
+  currentPathId: null,
+  selection: { pathId:null, pointIndex:null, handle:null }, // handle: 'c1' | 'c2' | 'anchor' | null
+  drag: null // {type, pathId, pointIndex, handle, ox,oy, startMouse:{x,y}}
+};
+
+const rndId = () => 'p' + Math.random().toString(36).slice(2,9);
+
+function getMouse(evt){
+  const pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+/* =================== Document / Path Ops =================== */
+function newPath(){
+  const id = rndId();
+  const p = { id, closed:false, points:[] };
+  state.doc.paths.push(p);
+  state.currentPathId = id;
+  render();
+  return p;
+}
+function getPath(id){ return state.doc.paths.find(p=>p.id===id); }
+
+function addPoint(path, x, y, dragVec=null){
+  // Create cubic anchor with symmetric handles
+  const defaultLen = 50;
+  let c1x = x - defaultLen, c1y = y;
+  let c2x = x + defaultLen, c2y = y;
+
+  if (dragVec){
+    // If user dragged at creation, align c1 & c2 with drag vector
+    const vx = dragVec.x, vy = dragVec.y;
+    c1x = x - vx; c1y = y - vy;
+    c2x = x + vx; c2y = y + vy;
+  } else if (path.points.length){
+    // Align with previous segment direction
+    const prev = path.points[path.points.length-1];
+    const dx = x - prev.x, dy = y - prev.y;
+    const len = Math.hypot(dx,dy) || 1;
+    const ux = dx/len, uy = dy/len;
+    c1x = x - ux*defaultLen; c1y = y - uy*defaultLen;
+    c2x = x + ux*defaultLen; c2y = y + uy*defaultLen;
+    // Also set outgoing handle of previous to mirror
+    prev.c2x = prev.x + ux*defaultLen;
+    prev.c2y = prev.y + uy*defaultLen;
+  }
+
+  const pt = { x,y, c1x, c1y, c2x, c2y };
+  path.points.push(pt);
+}
+
+function removePoint(pathId, index){
+  const path = getPath(pathId);
+  if (!path) return;
+  path.points.splice(index,1);
+  // Clean selection if needed
+  if (state.selection.pathId===pathId){
+    state.selection = { pathId:null, pointIndex:null, handle:null };
+  }
+  render();
+}
+
+/* ======================= Rendering ======================= */
+function render(){
+  // render paths
+  gPaths.innerHTML = '';
+  state.doc.paths.forEach(p=>{
+    const d = pathToD(p);
+    const el = document.createElementNS('http://www.w3.org/2000/svg','path');
+    el.setAttribute('class','path'+(state.selection.pathId===p.id?' selected':''));
+    el.setAttribute('d', d);
+    el.dataset.id = p.id;
+    gPaths.appendChild(el);
+
+    // thicker "hit" path for easier selection
+    const hit = document.createElementNS('http://www.w3.org/2000/svg','path');
+    hit.setAttribute('class','hit');
+    hit.setAttribute('d', d);
+    hit.setAttribute('stroke','transparent');
+    hit.setAttribute('stroke-width','16');
+    hit.setAttribute('fill','none');
+    hit.dataset.id = p.id;
+    gPaths.appendChild(hit);
+  });
+
+  // render helpers
+  gHelpers.innerHTML = '';
+  state.doc.paths.forEach(p=>{
+    p.points.forEach((pt, i)=>{
+      // handle lines
+      addLine(pt.c1x, pt.c1y, pt.x, pt.y, 'handle-line');
+      addLine(pt.x, pt.y, pt.c2x, pt.c2y, 'handle-line');
+      // handles
+      addDot(pt.c1x, pt.c1y, p.id, i, 'c1', 'handle-dot');
+      addDot(pt.c2x, pt.c2y, p.id, i, 'c2', 'handle-dot');
+      // anchor
+      addSquare(pt.x, pt.y, p.id, i, 'anchor',
+        'anchor-dot'+(isSelectedAnchor(p.id,i)?' selected':''));
+    });
+  });
+}
+
+function pathToD(p){
+  const pts = p.points;
+  if (!pts.length) return '';
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i=1;i<pts.length;i++){
+    const prev = pts[i-1], cur = pts[i];
+    // cubic from prev to cur
+    const c1x = prev.c2x ?? prev.x, c1y = prev.c2y ?? prev.y;
+    const c2x = cur.c1x ?? cur.x, c2y = cur.c1y ?? cur.y;
+    d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${cur.x} ${cur.y}`;
+  }
+  if (p.closed && pts.length>2) d += ' Z';
+  return d;
+}
+
+function addLine(x1,y1,x2,y2, cls){
+  const el = document.createElementNS('http://www.w3.org/2000/svg','line');
+  el.setAttribute('x1',x1); el.setAttribute('y1',y1);
+  el.setAttribute('x2',x2); el.setAttribute('y2',y2);
+  el.setAttribute('class', cls);
+  gHelpers.appendChild(el);
+}
+function addDot(x,y, pathId, idx, handle, cls){
+  const r=5;
+  const el = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  el.setAttribute('cx',x); el.setAttribute('cy',y); el.setAttribute('r',r);
+  el.setAttribute('class', cls);
+  el.dataset.pathId = pathId; el.dataset.index = idx; el.dataset.handle = handle;
+  // transparent hit target
+  const hit = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  hit.setAttribute('cx',x); hit.setAttribute('cy',y); hit.setAttribute('r',12);
+  hit.setAttribute('class','hit');
+  hit.dataset.pathId = pathId; hit.dataset.index = idx; hit.dataset.handle = handle;
+  gHelpers.appendChild(el); gHelpers.appendChild(hit);
+}
+function addSquare(x,y, pathId, idx, handle, cls){
+  const s=9;
+  const el = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  el.setAttribute('x',x-s/2); el.setAttribute('y',y-s/2);
+  el.setAttribute('width',s); el.setAttribute('height',s);
+  el.setAttribute('rx',1.5);
+  el.setAttribute('class', cls);
+  el.dataset.pathId = pathId; el.dataset.index = idx; el.dataset.handle = handle;
+  // hit target
+  const hit = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  hit.setAttribute('x',x-12/2); hit.setAttribute('y',y-12/2);
+  hit.setAttribute('width',12); hit.setAttribute('height',12);
+  hit.setAttribute('class','hit');
+  hit.dataset.pathId = pathId; hit.dataset.index = idx; hit.dataset.handle = handle;
+  gHelpers.appendChild(el); gHelpers.appendChild(hit);
+}
+function isSelectedAnchor(pathId, idx){
+  const s = state.selection;
+  return s.pathId===pathId && s.pointIndex===idx && s.handle==='anchor';
+}
+
+/* ======================= Interaction ======================= */
+// Toolbar
+$('#toolSelect').addEventListener('click', ()=>setTool(Tools.SELECT));
+$('#toolPen').addEventListener('click', ()=>setTool(Tools.PEN));
+$('#btnFinish').addEventListener('click', finishPath);
+$('#btnDelete').addEventListener('click', deleteSelection);
+$('#btnExport').addEventListener('click', exportSVG);
+$('#btnClear').addEventListener('click', ()=>{ state.doc.paths=[]; state.currentPathId=null; state.selection={pathId:null,pointIndex:null,handle:null}; render(); });
+
+function setTool(t){
+  state.tool = t;
+  $('#toolSelect').dataset.active = (t===Tools.SELECT);
+  $('#toolPen').dataset.active = (t===Tools.PEN);
+}
+
+function finishPath(){
+  state.currentPathId = null;
+  render();
+}
+
+function deleteSelection(){
+  const s = state.selection;
+  if (s.pathId && s.handle==='anchor' && s.pointIndex!=null) {
+    removePoint(s.pathId, s.pointIndex);
+  }
+}
+
+// Mouse
+let penDragVec = null;
+svg.addEventListener('mousedown', e=>{
+  const m = getMouse(e);
+
+  if (state.tool===Tools.PEN){
+    // start potential drag vector
+    penDragVec = { start:{x:m.x, y:m.y}, v:{x:0,y:0}, dragging:true };
+  }
+
+  // Determine target under cursor
+  const target = e.target;
+
+  // Handle drags for helpers (select tool)
+  if (state.tool===Tools.SELECT && target.classList.contains('hit') && target.dataset.index!=null){
+    const pathId = target.dataset.pathId;
+    const idx = +target.dataset.index;
+    const handle = target.dataset.handle; // 'c1' | 'c2' | 'anchor'
+    state.selection = { pathId, pointIndex:idx, handle };
+    const pt = getPath(pathId).points[idx];
+    state.drag = {
+      type: 'point',
+      pathId, pointIndex: idx, handle,
+      ox: pt.x, oy: pt.y,
+      oc1x: pt.c1x, oc1y: pt.c1y, oc2x: pt.c2x, oc2y: pt.c2y,
+      startMouse: m
+    };
+    render();
+    e.preventDefault();
+  }
+
+  // Click on a path selects it (select tool)
+  if (state.tool===Tools.SELECT && target.tagName==='path' && target.closest('#paths')){
+    const id = target.dataset.id;
+    state.selection = { pathId:id, pointIndex:null, handle:null };
+    render();
+  }
+});
+
+svg.addEventListener('mousemove', e=>{
+  const m = getMouse(e);
+
+  // live drag vector for pen tool
+  if (state.tool===Tools.PEN && penDragVec?.dragging){
+    penDragVec.v.x = m.x - penDragVec.start.x;
+    penDragVec.v.y = m.y - penDragVec.start.y;
+  }
+
+  // dragging points/handles
+  if (state.drag){
+    const d = state.drag;
+    const path = getPath(d.pathId);
+    const pt = path.points[d.pointIndex];
+
+    const dx = m.x - d.startMouse.x;
+    const dy = m.y - d.startMouse.y;
+
+    if (d.handle==='anchor'){
+      pt.x = d.ox + dx; pt.y = d.oy + dy;
+      pt.c1x = d.oc1x + dx; pt.c1y = d.oc1y + dy;
+      pt.c2x = d.oc2x + dx; pt.c2y = d.oc2y + dy;
+    } else if (d.handle==='c1'){
+      pt.c1x = d.oc1x + dx; pt.c1y = d.oc1y + dy;
+      // keep c2 mirrored if Shift held
+      if (e.shiftKey){
+        const vx = pt.x - pt.c1x, vy = pt.y - pt.c1y;
+        pt.c2x = pt.x + vx; pt.c2y = pt.y + vy;
+      }
+    } else if (d.handle==='c2'){
+      pt.c2x = d.oc2x + dx; pt.c2y = d.oc2y + dy;
+      if (e.shiftKey){
+        const vx = pt.x - pt.c2x, vy = pt.y - pt.c2y;
+        pt.c1x = pt.x + vx; pt.c1y = pt.y + vy;
+      }
+    }
+    render();
+  }
+});
+
+svg.addEventListener('mouseup', e=>{
+  const m = getMouse(e);
+
+  if (state.tool===Tools.PEN){
+    // On mouseup, we add a point (click) with possible drag vector from mousedown->mouseup
+    const dragging = penDragVec?.dragging;
+    let vec = null;
+    if (dragging){
+      const v = penDragVec.v;
+      if (Math.hypot(v.x,v.y) > 1) vec = v;
+    }
+    let path = state.currentPathId ? getPath(state.currentPathId) : null;
+    if (!path) path = newPath();
+    addPoint(path, m.x, m.y, vec);
+    state.selection = { pathId:path.id, pointIndex:path.points.length-1, handle:'anchor' };
+    render();
+    penDragVec = null;
+  }
+
+  // stop drag
+  state.drag = null;
+});
+
+svg.addEventListener('mouseleave', ()=>{ state.drag=null; penDragVec=null; });
+
+/* ================== Keyboard shortcuts ================== */
+window.addEventListener('keydown', e=>{
+  if (e.key==='v' || e.key==='V'){ setTool(Tools.SELECT); }
+  if (e.key==='p' || e.key==='P'){ setTool(Tools.PEN); }
+  if (e.key==='Enter'){ finishPath(); }
+  if (e.key==='Delete' || e.key==='Backspace'){ deleteSelection(); e.preventDefault(); }
+  if (e.key==='Escape'){ state.drag=null; penDragVec=null; }
+});
+
+/* ====================== Export ====================== */
+async function exportSVG(){
+  // Build a standalone SVG with current content (paths only)
+  const bbox = svg.getBoundingClientRect();
+  const w = Math.round(bbox.width), h = Math.round(bbox.height);
+  const doc = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  doc.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  doc.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  doc.setAttribute('width', w); doc.setAttribute('height', h);
+
+  state.doc.paths.forEach(p=>{
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', pathToD(p));
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke','#111');
+    path.setAttribute('stroke-width','2');
+    doc.appendChild(path);
+  });
+
+  const serializer = new XMLSerializer();
+  const svgText = serializer.serializeToString(doc);
+  try{
+    await navigator.clipboard.writeText(svgText);
+    flash('SVG copied to clipboard.');
+  }catch{
+    // Fallback: download a file
+    const blob = new Blob([svgText], {type:'image/svg+xml'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download='drawing.svg'; a.click();
+    URL.revokeObjectURL(url);
+    flash('SVG downloaded.');
+  }
+}
+
+function flash(msg){
+  const tip = document.createElement('div');
+  tip.textContent = msg;
+  tip.style.position='fixed';
+  tip.style.right='12px'; tip.style.bottom='12px';
+  tip.style.background='#000c'; tip.style.color='#fff';
+  tip.style.padding='8px 10px'; tip.style.borderRadius='8px';
+  tip.style.zIndex='9999';
+  document.body.appendChild(tip);
+  setTimeout(()=>tip.remove(), 1400);
+}
+
+/* ====================== Init ====================== */
+render();
+</script>
+</body>
+</html>
